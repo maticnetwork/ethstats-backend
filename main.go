@@ -2,14 +2,18 @@ package main
 
 import (
 	"flag"
-	"log"
+	"fmt"
+	"os"
+
+	// "log"
 	"net/http"
 	"strings"
 
 	"github.com/gorilla/websocket"
+	log "github.com/sirupsen/logrus"
 )
 
-var addr = flag.String("addr", "localhost:8080", "http service address")
+var addr = flag.String("addr", "localhost:3000", "http service address")
 
 var upgrader = websocket.Upgrader{} // use default options
 
@@ -26,6 +30,24 @@ var pongMessage = []byte(`{
 }`)
 
 func echo(w http.ResponseWriter, r *http.Request) {
+
+	f, err := os.OpenFile("log.log", os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
+	if err != nil {
+		fmt.Printf("error opening file: %v", err)
+	}
+
+	// don't forget to close it
+	defer f.Close()
+
+	// Log as JSON instead of the default ASCII formatter.
+	log.SetFormatter(&log.JSONFormatter{})
+
+	// Output to stderr instead of stdout, could also be a file.
+	log.SetOutput(f)
+
+	// Only log the warning severity or above.
+	log.SetLevel(log.DebugLevel)
+
 	upgrader.CheckOrigin = func(r *http.Request) bool {
 		return true
 	}
@@ -67,7 +89,7 @@ func echo(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	flag.Parse()
-	log.SetFlags(0)
+	// log.SetFlags(0)
 	http.HandleFunc("/", echo)
 	log.Fatal(http.ListenAndServe(*addr, nil))
 }
