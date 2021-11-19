@@ -16,16 +16,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const (
-	host     = "localhost"
-	port     = 5432
-	user     = "postgres"
-	password = "<password>"
-	dbname   = "postgres"
-)
-
-var db *sql.DB = nil
-
 var addr = flag.String("addr", "localhost:3000", "http service address")
 
 var upgrader = websocket.Upgrader{} // use default options
@@ -42,7 +32,108 @@ var pongMessage = []byte(`{
 	]
 }`)
 
+type State struct {
+	db *sql.DB
+}
+
+var s *State
+
+func NewState(path string) (*State, error) {
+
+	// connection string
+	psqlconn := path
+
+	db, err := sql.Open("postgres", psqlconn)
+	if err != nil {
+		return nil, err
+	}
+
+	err = db.Ping()
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println("Connected!")
+
+	s := &State{
+		db: db,
+	}
+	return s, nil
+}
+
+func (m Msg) decodeMsg(field string) interface{} {
+
+	// FORMAT of msg
+	// {
+	// 	"emit": [
+	// 	   "..",
+	// 	   {
+	// 		   "block": {
+	//				number : xxxxx
+	//				hash : xxxxx
+	//				...
+	//			}
+	// 	   }
+	// 	]
+	// }
+
+	decodedMsg := (m.msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})[field]
+	return decodedMsg
+}
+
+type Msg struct {
+	msg map[string]interface{}
+}
+
+func (s *State) WriteBlock(message []byte, table string) {
+	var msg map[string]interface{}
+
+	if err := json.Unmarshal(message, &msg); err != nil {
+		log.Println(err)
+	}
+
+	m := &Msg{
+		msg: msg,
+	}
+
+	block_number := int(m.decodeMsg("number").(float64))
+	block_hash := m.decodeMsg("hash").(string)
+	parent_hash := m.decodeMsg("parentHash").(string)
+	time_stamp := int(m.decodeMsg("timestamp").(float64))
+	miner := m.decodeMsg("miner").(string)
+	gas_used := int(m.decodeMsg("gasUsed").(float64))
+	gas_limit := int(m.decodeMsg("gasLimit").(float64))
+
+	difficulty, err := strconv.ParseInt(m.decodeMsg("difficulty").(string), 10, 64)
+	if err != nil {
+		log.Println(err)
+	}
+
+	total_difficulty, err := strconv.ParseInt(m.decodeMsg("totalDifficulty").(string), 10, 64)
+	if err != nil {
+		log.Println(err)
+	}
+
+	transactions_root := m.decodeMsg("transactionsRoot").(string)
+
+	//txCount and UncleCount are arrays.
+	transactions_count := len(m.decodeMsg("transactions").([]interface{}))
+	uncles_count := len(m.decodeMsg("uncles").([]interface{}))
+
+	state_root := m.decodeMsg("stateRoot").(string)
+
+	insertDynStmt := fmt.Sprintf(`insert into "%s"("block_number", "block_hash", "parent_hash", "time_stamp", "miner", "gas_used", "gas_limit", "difficulty", "total_difficulty", "transactions_root", "transactions_count", "uncles_count", "state_root") values($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13 )`, table)
+	_, e := s.db.Exec(insertDynStmt, block_number, block_hash, parent_hash, time_stamp, miner, gas_used, gas_limit, difficulty, total_difficulty, transactions_root, transactions_count, uncles_count, state_root)
+
+	if e != nil {
+		log.Println(err)
+	}
+
+}
+
 func echo(w http.ResponseWriter, r *http.Request) {
+
+	// s, err := NewState("host=localhost port=5432 user=postgres password=shivam dbname=postgres sslmode=disable")
 
 	upgrader.CheckOrigin = func(r *http.Request) bool {
 		return true
@@ -80,93 +171,12 @@ func echo(w http.ResponseWriter, r *http.Request) {
 				log.Println(err)
 			}
 
-			// fmt.Println("lol : ", (msg["emit"]).([]interface{})[1])
-
 		} else if strings.Contains(string(message), "REORGS DETECTED") {
-
-			var msg map[string]interface{}
-			if err := json.Unmarshal(message, &msg); err != nil {
-				log.Println(err)
-			}
-
-			block_number := int((msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["number"].(float64))
-			block_hash := (msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["hash"].(string)
-			parent_hash := (msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["parentHash"].(string)
-			time_stamp := int((msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["timestamp"].(float64))
-			miner := (msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["miner"].(string)
-			gas_used := int((msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["gasUsed"].(float64))
-			gas_limit := int((msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["gasLimit"].(float64))
-
-			difficulty, err := strconv.ParseInt((msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["difficulty"].(string), 10, 64)
-			if err != nil {
-				log.Println(err)
-			}
-
-			total_difficulty, err := strconv.ParseInt((msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["totalDifficulty"].(string), 10, 64)
-			if err != nil {
-				log.Println(err)
-			}
-
-			transactions_root := (msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["transactionsRoot"].(string)
-			transactions_count := len((msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["transactions"].([]interface{}))
-			uncles_count := len((msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["uncles"].([]interface{}))
-			state_root := (msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["stateRoot"].(string)
-
-			// connection string
-			psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
-
-			// open database
-			db, err := sql.Open("postgres", psqlconn)
-			CheckError(err)
-
-			// close database
-			defer db.Close()
-
-			// check db
-			err = db.Ping()
-			CheckError(err)
-
-			fmt.Println("Connected!")
-
-			insertDynStmt := `insert into "blocks"("block_number", "block_hash", "parent_hash", "time_stamp", "miner", "gas_used", "gas_limit", "difficulty", "total_difficulty", "transactions_root", "transactions_count", "uncles_count", "state_root") values($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13 )`
-			_, e := db.Exec(insertDynStmt, block_number, block_hash, parent_hash, time_stamp, miner, gas_used, gas_limit, difficulty, total_difficulty, transactions_root, transactions_count, uncles_count, state_root)
-			CheckError(e)
-
-			fmt.Println("reorg : ", (msg["emit"]).([]interface{})[1])
+			s.WriteBlock(message, "reorgblocks")
 
 		} else if strings.Contains(string(message), "block") {
 
-			var msg map[string]interface{}
-			if err := json.Unmarshal(message, &msg); err != nil {
-				log.Println(err)
-			}
-
-			block_number := int((msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["number"].(float64))
-			block_hash := (msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["hash"].(string)
-			parent_hash := (msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["parentHash"].(string)
-			time_stamp := int((msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["timestamp"].(float64))
-			miner := (msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["miner"].(string)
-			gas_used := int((msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["gasUsed"].(float64))
-			gas_limit := int((msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["gasLimit"].(float64))
-
-			difficulty, err := strconv.ParseInt((msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["difficulty"].(string), 10, 64)
-			if err != nil {
-				log.Println(err)
-			}
-
-			total_difficulty, err := strconv.ParseInt((msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["totalDifficulty"].(string), 10, 64)
-			if err != nil {
-				log.Println(err)
-			}
-
-			transactions_root := (msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["transactionsRoot"].(string)
-			transactions_count := len((msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["transactions"].([]interface{}))
-			uncles_count := len((msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["uncles"].([]interface{}))
-			state_root := (msg["emit"]).([]interface{})[1].(map[string]interface{})["block"].(map[string]interface{})["stateRoot"].(string)
-
-			insertDynStmt := `insert into "blocks"("block_number", "block_hash", "parent_hash", "time_stamp", "miner", "gas_used", "gas_limit", "difficulty", "total_difficulty", "transactions_root", "transactions_count", "uncles_count", "state_root") values($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13 )`
-			_, e := db.Exec(insertDynStmt, block_number, block_hash, parent_hash, time_stamp, miner, gas_used, gas_limit, difficulty, total_difficulty, transactions_root, transactions_count, uncles_count, state_root)
-			CheckError(e)
+			s.WriteBlock(message, "blocks")
 
 		} else if strings.Contains(string(message), "node-ping") {
 
@@ -182,31 +192,14 @@ func echo(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	flag.Parse()
-	// log.SetFlags(0)
 
-	// connection string
-	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
-
-	// open database
 	var err error
-	db, err = sql.Open("postgres", psqlconn)
-	CheckError(err)
-
-	// close database
-	defer db.Close()
-
-	// check db
-	err = db.Ping()
-	CheckError(err)
-
-	fmt.Println("Connected!")
-
-	http.HandleFunc("/", echo)
-	log.Fatal(http.ListenAndServe(*addr, nil))
-}
-
-func CheckError(err error) {
+	s, err = NewState("host=localhost port=5432 user=postgres password=shivam dbname=postgres sslmode=disable")
 	if err != nil {
 		log.Info(err)
 	}
+	defer s.db.Close()
+
+	http.HandleFunc("/", echo)
+	log.Fatal(http.ListenAndServe(*addr, nil))
 }
