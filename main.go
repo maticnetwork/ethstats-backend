@@ -77,22 +77,22 @@ func NewState(path string) (*State, error) {
 	return s, nil
 }
 
-func cleanMessage(message []byte) *Msg {
+func extractMsg(message []byte) (*Msg, error) {
 
 	var msg map[string]interface{}
 
 	if err := json.Unmarshal(message, &msg); err != nil {
-		log.Println(err)
+		return nil, err
 	}
 
 	m := &Msg{
 		msg: msg,
 	}
 
-	return m
+	return m, nil
 }
 
-func (m Msg) decodeMsg() Block {
+func (m *Msg) decodeMsg(field string, out interface{}) error {
 
 	// FORMAT of msg
 	// {
@@ -108,17 +108,15 @@ func (m Msg) decodeMsg() Block {
 	// 	]
 	// }
 
-	decodedMsg := (m.msg["emit"]).([]interface{})[1].(map[string]interface{})["block"]
+	decodedMsg := (m.msg["emit"]).([]interface{})[1].(map[string]interface{})[field]
 
-	out, _ := json.Marshal(decodedMsg)
+	res, _ := json.Marshal(decodedMsg)
 
-	var rawBlock Block
-
-	if err := json.Unmarshal(out, &rawBlock); err != nil {
-		panic(err)
+	if err := json.Unmarshal(res, &out); err != nil {
+		return err
 	}
 
-	return rawBlock
+	return nil
 }
 
 type Msg struct {
@@ -126,14 +124,6 @@ type Msg struct {
 }
 
 func (s *State) WriteBlock(block Block, table string) {
-
-	block_number := int(block.Number)
-	block_hash := block.Hash
-	parent_hash := block.ParentHash
-	time_stamp := int(block.Timestamp)
-	miner := block.Miner
-	gas_used := int(block.GasUsed)
-	gas_limit := int(block.GasLimit)
 
 	difficulty, err := strconv.ParseInt(block.Diff, 10, 64)
 	if err != nil {
@@ -145,16 +135,8 @@ func (s *State) WriteBlock(block Block, table string) {
 		log.Println(err)
 	}
 
-	transactions_root := block.TxHash
-
-	// txCount and UncleCount are arrays.
-	transactions_count := len(block.Txs)
-	uncles_count := len(block.Uncles)
-
-	state_root := block.Root
-
 	insertDynStmt := fmt.Sprintf(`insert into "%s"("block_number", "block_hash", "parent_hash", "time_stamp", "miner", "gas_used", "gas_limit", "difficulty", "total_difficulty", "transactions_root", "transactions_count", "uncles_count", "state_root") values($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13 )`, table)
-	_, e := s.db.Exec(insertDynStmt, block_number, block_hash, parent_hash, time_stamp, miner, gas_used, gas_limit, difficulty, total_difficulty, transactions_root, transactions_count, uncles_count, state_root)
+	_, e := s.db.Exec(insertDynStmt, int(block.Number), block.Hash, block.ParentHash, int(block.Timestamp), block.Miner, int(block.GasUsed), int(block.GasLimit), difficulty, total_difficulty, block.TxHash, len(block.Txs), len(block.Uncles), block.Root)
 
 	if e != nil {
 		log.Println(err)
@@ -202,15 +184,23 @@ func echo(w http.ResponseWriter, r *http.Request) {
 
 		} else if strings.Contains(string(message), "REORGS DETECTED") {
 
-			m := cleanMessage(message)
-			block := m.decodeMsg()
-			s.WriteBlock(block, "reorgblocks")
+			m, err := extractMsg(message)
+			if err != nil {
+				log.Info(err)
+			}
+			var rawBlock Block
+			m.decodeMsg("block", &rawBlock)
+			s.WriteBlock(rawBlock, "reorgblocks")
 
 		} else if strings.Contains(string(message), "block") {
 
-			m := cleanMessage(message)
-			block := m.decodeMsg()
-			s.WriteBlock(block, "blocks")
+			m, err := extractMsg(message)
+			if err != nil {
+				log.Info(err)
+			}
+			var rawBlock Block
+			m.decodeMsg("block", &rawBlock)
+			s.WriteBlock(rawBlock, "blocks")
 
 		} else if strings.Contains(string(message), "node-ping") {
 
