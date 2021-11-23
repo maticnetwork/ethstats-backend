@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"strconv"
+	"os"
 
 	_ "github.com/lib/pq"
 
@@ -37,6 +37,36 @@ type TxStats struct {
 	Hash string `json:"hash"`
 }
 
+// nodeInfo is the collection of meta information about a node that is displayed
+// on the monitoring page.
+type NodeInfo struct {
+	Name     string `json:"name"`
+	Node     string `json:"node"`
+	Port     int    `json:"port"`
+	Network  string `json:"net"`
+	Protocol string `json:"protocol"`
+	API      string `json:"api"`
+	Os       string `json:"os"`
+	OsVer    string `json:"os_v"`
+	Client   string `json:"client"`
+	History  bool   `json:"canUpdateHistory"`
+}
+
+var rawInfo NodeInfo
+
+// nodeStats is the information to report about the local node.
+type NodeStats struct {
+	Active   bool `json:"active"`
+	Syncing  bool `json:"syncing"`
+	Mining   bool `json:"mining"`
+	Hashrate int  `json:"hashrate"`
+	Peers    int  `json:"peers"`
+	GasPrice int  `json:"gasPrice"`
+	Uptime   int  `json:"uptime"`
+}
+
+var rawStats NodeStats
+
 var addr = flag.String("addr", "localhost:3000", "http service address")
 
 var upgrader = websocket.Upgrader{} // use default options
@@ -59,27 +89,9 @@ type State struct {
 
 var s *State
 
-func NewState(path string) (*State, error) {
-
-	db, err := sql.Open("postgres", path)
-	if err != nil {
-		return nil, err
-	}
-
-	err = db.Ping()
-	if err != nil {
-		return nil, err
-	}
-
-	s := &State{
-		db: db,
-	}
-	return s, nil
-}
-
 func extractMsg(message []byte) (*Msg, error) {
 
-	var msg map[string]interface{}
+	var msg map[string]json.RawMessage
 
 	if err := json.Unmarshal(message, &msg); err != nil {
 		return nil, err
@@ -108,11 +120,24 @@ func (m *Msg) decodeMsg(field string, out interface{}) error {
 	// 	]
 	// }
 
-	decodedMsg := (m.msg["emit"]).([]interface{})[1].(map[string]interface{})[field]
+	var msg []json.RawMessage
 
-	res, _ := json.Marshal(decodedMsg)
+	if err := json.Unmarshal(m.msg["emit"], &msg); err != nil {
+		return err
+	}
 
-	if err := json.Unmarshal(res, &out); err != nil {
+	var msg2 map[string]json.RawMessage
+
+	if err := json.Unmarshal(msg[1], &msg2); err != nil {
+		return err
+	}
+
+	data, ok := msg2[field]
+	if !ok {
+		return fmt.Errorf("message %s not found", field)
+	}
+
+	if err := json.Unmarshal(data, out); err != nil {
 		return err
 	}
 
@@ -120,28 +145,7 @@ func (m *Msg) decodeMsg(field string, out interface{}) error {
 }
 
 type Msg struct {
-	msg map[string]interface{}
-}
-
-func (s *State) WriteBlock(block Block, table string) {
-
-	difficulty, err := strconv.ParseInt(block.Diff, 10, 64)
-	if err != nil {
-		log.Println(err)
-	}
-
-	total_difficulty, err := strconv.ParseInt(block.TotalDiff, 10, 64)
-	if err != nil {
-		log.Println(err)
-	}
-
-	insertDynStmt := fmt.Sprintf(`insert into "%s"("block_number", "block_hash", "parent_hash", "time_stamp", "miner", "gas_used", "gas_limit", "difficulty", "total_difficulty", "transactions_root", "transactions_count", "uncles_count", "state_root") values($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13 )`, table)
-	_, e := s.db.Exec(insertDynStmt, int(block.Number), block.Hash, block.ParentHash, int(block.Timestamp), block.Miner, int(block.GasUsed), int(block.GasLimit), difficulty, total_difficulty, block.TxHash, len(block.Txs), len(block.Uncles), block.Root)
-
-	if e != nil {
-		log.Println(err)
-	}
-
+	msg map[string]json.RawMessage
 }
 
 func echo(w http.ResponseWriter, r *http.Request) {
@@ -164,7 +168,7 @@ func echo(w http.ResponseWriter, r *http.Request) {
 			log.Println("read:", err)
 			break
 		}
-		log.Printf("recv: %s", message)
+		// log.Printf("recv: %s", message)
 
 		if !logged {
 			// send auth message
@@ -190,7 +194,16 @@ func echo(w http.ResponseWriter, r *http.Request) {
 			}
 			var rawBlock Block
 			m.decodeMsg("block", &rawBlock)
-			s.WriteBlock(rawBlock, "reorgblocks")
+
+			tx, err := s.db.Begin()
+			if err != nil {
+				log.Info(err)
+			}
+			s.WriteReorgEvents(tx, &rawBlock)
+
+			if err := tx.Commit(); err != nil {
+				log.Info(err)
+			}
 
 		} else if strings.Contains(string(message), "block") {
 
@@ -200,16 +213,65 @@ func echo(w http.ResponseWriter, r *http.Request) {
 			}
 			var rawBlock Block
 			m.decodeMsg("block", &rawBlock)
-			s.WriteBlock(rawBlock, "blocks")
+
+			tx, err := s.db.Begin()
+			if err != nil {
+				log.Info(err)
+			}
+			s.WriteBlock(tx, &rawBlock)
+
+			if err := tx.Commit(); err != nil {
+				log.Info(err)
+			}
 
 		} else if strings.Contains(string(message), "node-ping") {
 
 			// send a pong
-
 			if err := c.WriteMessage(mt, pongMessage); err != nil {
 				log.Println("write:", err)
 				break
 			}
+		} else if strings.Contains(string(message), "stats") {
+
+			m, err := extractMsg(message)
+			if err != nil {
+				log.Info(err)
+			}
+			m.decodeMsg("stats", &rawStats)
+
+			tx, err := s.db.Begin()
+			if err != nil {
+				log.Info(err)
+			}
+			if err := s.WriteNodeStats(tx, &rawStats, rawInfo.Name); err != nil {
+				log.Info(err)
+			}
+
+			if err := tx.Commit(); err != nil {
+				log.Info(err)
+			}
+
+		} else if strings.Contains(string(message), "hello") {
+
+			m, err := extractMsg(message)
+			if err != nil {
+				log.Info(err)
+			}
+
+			m.decodeMsg("info", &rawInfo)
+
+			tx, err := s.db.Begin()
+			if err != nil {
+				log.Info(err)
+			}
+			if err := s.WriteNodeInfo(tx, &rawInfo); err != nil {
+				log.Info(err)
+			}
+
+			if err := tx.Commit(); err != nil {
+				log.Info(err)
+			}
+
 		}
 	}
 }
@@ -218,11 +280,13 @@ func main() {
 	flag.Parse()
 
 	var err error
-	s, err = NewState("host=localhost port=5432 user=postgres password=shivam dbname=postgres sslmode=disable")
+	path := fmt.Sprintf("host=localhost port=5432 user=postgres password=%s dbname=%s sslmode=disable", os.Getenv("DBPASS"), os.Getenv("DBNAME"))
+	s, err = NewState(path)
 	if err != nil {
 		log.Info(err)
 	}
 	defer s.db.Close()
+	log.Info("DB CONNECTED!")
 
 	http.HandleFunc("/", echo)
 	log.Fatal(http.ListenAndServe(*addr, nil))
