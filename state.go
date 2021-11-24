@@ -6,6 +6,10 @@ import (
 	"strconv"
 )
 
+type State struct {
+	db *sql.DB
+}
+
 func NewState(path string) (*State, error) {
 
 	db, err := sql.Open("postgres", path)
@@ -62,26 +66,26 @@ func (s *State) WriteBlock(tx *sql.Tx, block *Block) error {
 }
 
 func (s *State) WriteReorgEvents(tx *sql.Tx, block *Block) error {
-	insertDynStmt := `insert into reorgevents("block_number", "block_hash", "node_info") values($1, $2, $3)`
-	if _, err := tx.Exec(insertDynStmt, int(block.Number), block.Hash, "Node Name"); err != nil {
+	insertDynStmt := `insert into reorgevents("block_number", "block_hash", "node_id") values($1, $2, $3)`
+	if _, err := tx.Exec(insertDynStmt, int(block.Number), block.Hash, "Node ID"); err != nil {
 		return err
 	}
 	s.WriteBlock(tx, block)
 	return nil
 }
 
-func (s *State) WriteNodeInfo(tx *sql.Tx, nodeInfo *NodeInfo) error {
+func (s *State) WriteNodeInfo(tx *sql.Tx, nodeInfo *NodeInfo, nodeID *string) error {
 
 	var rowExist int
 
-	q2 := fmt.Sprintf(`SELECT count(*) FROM public.nodeinfo Where name='%s'`, nodeInfo.Name)
+	q2 := fmt.Sprintf(`SELECT count(*) FROM public.nodeinfo Where node_id='%s'`, *nodeID)
 
 	row := tx.QueryRow(q2)
 	row.Scan(&rowExist)
 
 	if rowExist == 0 {
-		insertDynStmt := `insert into nodeinfo("name", "node", "port", "network", "protocol", "api", "os", "osver", "client", "history") values($1, $2, $3, $4, $5, $6, $7, $8, $9, $10 )`
-		_, e := tx.Exec(insertDynStmt, nodeInfo.Name, nodeInfo.Node, nodeInfo.Port, nodeInfo.Network, nodeInfo.Protocol, nodeInfo.API, nodeInfo.Os, nodeInfo.OsVer, nodeInfo.Client, nodeInfo.History)
+		insertDynStmt := `insert into nodeinfo("name", "node", "port", "network", "protocol", "api", "os", "osver", "client", "history", "node_id") values($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11 )`
+		_, e := tx.Exec(insertDynStmt, nodeInfo.Name, nodeInfo.Node, nodeInfo.Port, nodeInfo.Network, nodeInfo.Protocol, nodeInfo.API, nodeInfo.Os, nodeInfo.OsVer, nodeInfo.Client, nodeInfo.History, *nodeID)
 		if e != nil {
 			return e
 		}
@@ -90,18 +94,18 @@ func (s *State) WriteNodeInfo(tx *sql.Tx, nodeInfo *NodeInfo) error {
 	return nil
 }
 
-func (s *State) WriteNodeStats(tx *sql.Tx, nodeStats *NodeStats, node_name string) error {
+func (s *State) WriteNodeStats(tx *sql.Tx, nodeStats *NodeStats, nodeId *string) error {
 
 	var rowExist int
 
-	q2 := fmt.Sprintf(`SELECT count(*) FROM public.nodestats Where name='%s'`, node_name)
+	q2 := fmt.Sprintf(`SELECT count(*) FROM public.nodestats Where node_id='%s'`, *nodeId)
 
 	row := tx.QueryRow(q2)
 	row.Scan(&rowExist)
 
 	if rowExist == 0 {
-		insertDynStmt := `insert into nodestats("name", "active", "syncing", "mining", "hashrate", "peers", "gasprice", "uptime") values($1, $2, $3, $4, $5, $6, $7, $8)`
-		_, e := tx.Exec(insertDynStmt, node_name, nodeStats.Active, nodeStats.Syncing, nodeStats.Mining, nodeStats.Hashrate, nodeStats.Peers, nodeStats.GasPrice, nodeStats.Uptime)
+		insertDynStmt := `insert into nodestats("node_id", "active", "syncing", "mining", "hashrate", "peers", "gasprice", "uptime") values($1, $2, $3, $4, $5, $6, $7, $8)`
+		_, e := tx.Exec(insertDynStmt, *nodeId, nodeStats.Active, nodeStats.Syncing, nodeStats.Mining, nodeStats.Hashrate, nodeStats.Peers, nodeStats.GasPrice, nodeStats.Uptime)
 		if e != nil {
 			return e
 		}

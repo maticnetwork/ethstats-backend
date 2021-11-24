@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -33,40 +32,6 @@ type Block struct {
 	Uncles     []Block   `json:"uncles"`
 }
 
-type TxStats struct {
-	Hash string `json:"hash"`
-}
-
-// nodeInfo is the collection of meta information about a node that is displayed
-// on the monitoring page.
-type NodeInfo struct {
-	Name     string `json:"name"`
-	Node     string `json:"node"`
-	Port     int    `json:"port"`
-	Network  string `json:"net"`
-	Protocol string `json:"protocol"`
-	API      string `json:"api"`
-	Os       string `json:"os"`
-	OsVer    string `json:"os_v"`
-	Client   string `json:"client"`
-	History  bool   `json:"canUpdateHistory"`
-}
-
-var rawInfo NodeInfo
-
-// nodeStats is the information to report about the local node.
-type NodeStats struct {
-	Active   bool `json:"active"`
-	Syncing  bool `json:"syncing"`
-	Mining   bool `json:"mining"`
-	Hashrate int  `json:"hashrate"`
-	Peers    int  `json:"peers"`
-	GasPrice int  `json:"gasPrice"`
-	Uptime   int  `json:"uptime"`
-}
-
-var rawStats NodeStats
-
 var addr = flag.String("addr", "localhost:3000", "http service address")
 
 var upgrader = websocket.Upgrader{} // use default options
@@ -82,10 +47,6 @@ var pongMessage = []byte(`{
 		{}
 	]
 }`)
-
-type State struct {
-	db *sql.DB
-}
 
 var s *State
 
@@ -168,7 +129,7 @@ func echo(w http.ResponseWriter, r *http.Request) {
 			log.Println("read:", err)
 			break
 		}
-		// log.Printf("recv: %s", message)
+		log.Printf("recv: %s", mt)
 
 		if !logged {
 			// send auth message
@@ -233,17 +194,20 @@ func echo(w http.ResponseWriter, r *http.Request) {
 			}
 		} else if strings.Contains(string(message), "stats") {
 
+			var rawStats NodeStats
+			var nodeID string
 			m, err := extractMsg(message)
 			if err != nil {
 				log.Info(err)
 			}
 			m.decodeMsg("stats", &rawStats)
-
+			m.decodeMsg("id", &nodeID)
 			tx, err := s.db.Begin()
 			if err != nil {
 				log.Info(err)
 			}
-			if err := s.WriteNodeStats(tx, &rawStats, rawInfo.Name); err != nil {
+
+			if err := s.WriteNodeStats(tx, &rawStats, &nodeID); err != nil {
 				log.Info(err)
 			}
 
@@ -253,18 +217,22 @@ func echo(w http.ResponseWriter, r *http.Request) {
 
 		} else if strings.Contains(string(message), "hello") {
 
+			var rawInfo NodeInfo
+			var nodeID string
+
 			m, err := extractMsg(message)
 			if err != nil {
 				log.Info(err)
 			}
 
 			m.decodeMsg("info", &rawInfo)
+			m.decodeMsg("id", &nodeID)
 
 			tx, err := s.db.Begin()
 			if err != nil {
 				log.Info(err)
 			}
-			if err := s.WriteNodeInfo(tx, &rawInfo); err != nil {
+			if err := s.WriteNodeInfo(tx, &rawInfo, &nodeID); err != nil {
 				log.Info(err)
 			}
 
