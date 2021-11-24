@@ -3,11 +3,9 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"testing"
 
 	"github.com/ory/dockertest"
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -44,60 +42,10 @@ func setupPostgresql(t *testing.T) (*sql.DB, func()) {
 	return db, cleanup
 }
 
-func execSQLFile(t *testing.T, path string, tx *sql.Tx) error {
-	c, ioErr := ioutil.ReadFile(path)
-	if ioErr != nil {
-		t.Fatal("Cannot Read SQL file.")
-	}
-	sql := string(c)
-
-	_, err := tx.Exec(sql)
-	if err != nil {
-		return err
-	}
-
-	t.Log(sql)
-	return nil
-}
-
-func setupPostgresqlTables(t *testing.T, db *sql.DB) error {
-
-	tx, err := db.Begin()
-	if err != nil {
-		log.Info(err)
-	}
-
-	if err := execSQLFile(t, "./migrations/01-block.sql", tx); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := execSQLFile(t, "./migrations/02-reorgEvent.sql", tx); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := execSQLFile(t, "./migrations/03-nodeInfo.sql", tx); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := execSQLFile(t, "./migrations/04-nodeStats.sql", tx); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		log.Info(err)
-	}
-
-	return nil
-}
-
-func TestState_Blocks(t *testing.T) error {
+func TestState_Blocks(t *testing.T) {
 
 	db, closeFn := setupPostgresql(t)
 	defer closeFn()
-
-	if err := setupPostgresqlTables(t, db); err != nil {
-		assert.NoError(t, err)
-	}
 
 	s, err := NewStateWithDB(db)
 	assert.NoError(t, err)
@@ -122,16 +70,9 @@ func TestState_Blocks(t *testing.T) error {
 		Root:       "0x86a0906f755bfda86527e49a598fc6592235ee4bcf8592c49b8e5c59e46c0655",
 	}
 
-	tx, err := db.Begin()
-	if err != nil {
-		log.Info(err)
+	var testnode string = "Test Node"
+
+	if err := s.WriteBlock(testBlock, &testnode); err != nil {
+		t.Fatal(err)
 	}
-	s.WriteBlock(tx, testBlock)
-
-	if err := tx.Commit(); err != nil {
-		log.Info(err)
-	}
-
-	return nil
-
 }

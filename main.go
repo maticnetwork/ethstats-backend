@@ -122,6 +122,8 @@ func echo(w http.ResponseWriter, r *http.Request) {
 
 	logged := false
 
+	var nodeID string
+
 	defer c.Close()
 	for {
 		mt, message, err := c.ReadMessage()
@@ -129,7 +131,7 @@ func echo(w http.ResponseWriter, r *http.Request) {
 			log.Println("read:", err)
 			break
 		}
-		log.Printf("recv: %s", mt)
+		// log.Printf("recv: %d", mt)
 
 		if !logged {
 			// send auth message
@@ -156,15 +158,7 @@ func echo(w http.ResponseWriter, r *http.Request) {
 			var rawBlock Block
 			m.decodeMsg("block", &rawBlock)
 
-			tx, err := s.db.Begin()
-			if err != nil {
-				log.Info(err)
-			}
-			s.WriteReorgEvents(tx, &rawBlock)
-
-			if err := tx.Commit(); err != nil {
-				log.Info(err)
-			}
+			s.WriteReorgEvents(&rawBlock, &nodeID)
 
 		} else if strings.Contains(string(message), "block") {
 
@@ -175,15 +169,7 @@ func echo(w http.ResponseWriter, r *http.Request) {
 			var rawBlock Block
 			m.decodeMsg("block", &rawBlock)
 
-			tx, err := s.db.Begin()
-			if err != nil {
-				log.Info(err)
-			}
-			s.WriteBlock(tx, &rawBlock)
-
-			if err := tx.Commit(); err != nil {
-				log.Info(err)
-			}
+			s.WriteBlock(&rawBlock, &nodeID)
 
 		} else if strings.Contains(string(message), "node-ping") {
 
@@ -195,51 +181,31 @@ func echo(w http.ResponseWriter, r *http.Request) {
 		} else if strings.Contains(string(message), "stats") {
 
 			var rawStats NodeStats
-			var nodeID string
+
 			m, err := extractMsg(message)
 			if err != nil {
 				log.Info(err)
 			}
 			m.decodeMsg("stats", &rawStats)
-			m.decodeMsg("id", &nodeID)
-			tx, err := s.db.Begin()
-			if err != nil {
-				log.Info(err)
-			}
 
-			if err := s.WriteNodeStats(tx, &rawStats, &nodeID); err != nil {
-				log.Info(err)
-			}
-
-			if err := tx.Commit(); err != nil {
+			if err := s.WriteNodeStats(&rawStats, &nodeID); err != nil {
 				log.Info(err)
 			}
 
 		} else if strings.Contains(string(message), "hello") {
-
-			var rawInfo NodeInfo
-			var nodeID string
-
+			// First message sent by the user
 			m, err := extractMsg(message)
 			if err != nil {
 				log.Info(err)
 			}
 
+			var rawInfo NodeInfo
 			m.decodeMsg("info", &rawInfo)
 			m.decodeMsg("id", &nodeID)
 
-			tx, err := s.db.Begin()
-			if err != nil {
+			if err := s.WriteNodeInfo(&rawInfo, &rawInfo.Name); err != nil {
 				log.Info(err)
 			}
-			if err := s.WriteNodeInfo(tx, &rawInfo, &nodeID); err != nil {
-				log.Info(err)
-			}
-
-			if err := tx.Commit(); err != nil {
-				log.Info(err)
-			}
-
 		}
 	}
 }

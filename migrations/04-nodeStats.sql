@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS public.nodestats
 (
-    name character varying(40) COLLATE pg_catalog."default" NOT NULL,
+    node_id character varying(40) COLLATE pg_catalog."default" NOT NULL,
     active boolean,
     syncing boolean,
     mining boolean,
@@ -12,9 +12,9 @@ CREATE TABLE IF NOT EXISTS public.nodestats
     peers integer,
     gasprice integer,
     uptime integer,
-    CONSTRAINT nodestats_pkey PRIMARY KEY (name),
-    CONSTRAINT fk_node_name FOREIGN KEY (name)
-        REFERENCES public.nodeinfo (name) MATCH SIMPLE
+    CONSTRAINT nodestats_pkey PRIMARY KEY (node_id),
+    CONSTRAINT fk_node_id FOREIGN KEY (node_id)
+        REFERENCES public.nodeinfo (node_id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
         NOT VALID

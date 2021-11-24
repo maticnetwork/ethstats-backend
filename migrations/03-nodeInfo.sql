@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS public.nodeinfo
 (
-    name character varying(40) COLLATE pg_catalog."default" NOT NULL,
+    node_id character varying(40) COLLATE pg_catalog."default" NOT NULL,
     node character varying(100) COLLATE pg_catalog."default",
     port integer,
     network character varying(100) COLLATE pg_catalog."default",
@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS public.nodeinfo
     osver character varying(100) COLLATE pg_catalog."default",
     client character varying(100) COLLATE pg_catalog."default",
     history boolean,
-    CONSTRAINT nodeinfo_pkey PRIMARY KEY (name)
+    name character varying(40) COLLATE pg_catalog."default",
+    CONSTRAINT nodeinfo_pkey PRIMARY KEY (node_id)
 )
 
 TABLESPACE pg_default;
