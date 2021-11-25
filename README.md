@@ -4,7 +4,9 @@
 Start websocket server:
 
 ```
-$ go run main.go
+$ export DBNAME=<Database Name>
+$ export DBPASS=<Database password>
+$ go run .
 ```
 
 Start geth client:
