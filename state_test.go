@@ -70,9 +70,7 @@ func TestState_Blocks(t *testing.T) {
 		Root:       "0x86a0906f755bfda86527e49a598fc6592235ee4bcf8592c49b8e5c59e46c0655",
 	}
 
-	var testnode string = "Test Node"
-
-	if err := s.WriteBlock(testBlock, &testnode); err != nil {
+	if err := s.WriteBlock(testBlock); err != nil {
 		t.Fatal(err)
 	}
 }

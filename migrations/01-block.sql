@@ -17,7 +17,6 @@ CREATE TABLE IF NOT EXISTS public.blocks
     transactions_count integer NOT NULL,
     uncles_count integer NOT NULL,
     state_root character varying(66) COLLATE pg_catalog."default" NOT NULL,
-    node_id character varying(40) COLLATE pg_catalog."default",
     CONSTRAINT blocks_pkey PRIMARY KEY (block_hash)
 )
 

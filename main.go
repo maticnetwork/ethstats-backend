@@ -169,7 +169,7 @@ func echo(w http.ResponseWriter, r *http.Request) {
 			var rawBlock Block
 			m.decodeMsg("block", &rawBlock)
 
-			s.WriteBlock(&rawBlock, &nodeID)
+			s.WriteBlock(&rawBlock)
 
 		} else if strings.Contains(string(message), "node-ping") {
 

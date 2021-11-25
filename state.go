@@ -75,7 +75,7 @@ func (s *State) migrate() error {
 	return nil
 }
 
-func (s *State) writeBlockImpl(tx *sql.Tx, block *Block, nodeID *string) error {
+func (s *State) writeBlockImpl(tx *sql.Tx, block *Block) error {
 
 	difficulty, err := strconv.ParseInt(block.Diff, 10, 64)
 	if err != nil {
@@ -95,8 +95,8 @@ func (s *State) writeBlockImpl(tx *sql.Tx, block *Block, nodeID *string) error {
 	row.Scan(&blockExist)
 
 	if blockExist == 0 {
-		insertDynStmt := `insert into blocks("block_number", "block_hash", "parent_hash", "time_stamp", "miner", "gas_used", "gas_limit", "difficulty", "total_difficulty", "transactions_root", "transactions_count", "uncles_count", "state_root", "node_id") values($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14 )`
-		_, e := tx.Exec(insertDynStmt, int(block.Number), block.Hash, block.ParentHash, int(block.Timestamp), block.Miner, int(block.GasUsed), int(block.GasLimit), difficulty, total_difficulty, block.TxHash, len(block.Txs), len(block.Uncles), block.Root, nodeID)
+		insertDynStmt := `insert into blocks("block_number", "block_hash", "parent_hash", "time_stamp", "miner", "gas_used", "gas_limit", "difficulty", "total_difficulty", "transactions_root", "transactions_count", "uncles_count", "state_root") values($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13 )`
+		_, e := tx.Exec(insertDynStmt, int(block.Number), block.Hash, block.ParentHash, int(block.Timestamp), block.Miner, int(block.GasUsed), int(block.GasLimit), difficulty, total_difficulty, block.TxHash, len(block.Txs), len(block.Uncles), block.Root)
 		if e != nil {
 			return e
 		}
@@ -105,14 +105,14 @@ func (s *State) writeBlockImpl(tx *sql.Tx, block *Block, nodeID *string) error {
 	return nil
 }
 
-func (s *State) WriteBlock(block *Block, nodeID *string) error {
+func (s *State) WriteBlock(block *Block) error {
 
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
 	}
 
-	if err := s.writeBlockImpl(tx, block, nodeID); err != nil {
+	if err := s.writeBlockImpl(tx, block); err != nil {
 		return err
 	}
 
@@ -135,7 +135,7 @@ func (s *State) WriteReorgEvents(block *Block, nodeID *string) error {
 		return err
 	}
 
-	if err := s.writeBlockImpl(tx, block, nodeID); err != nil {
+	if err := s.writeBlockImpl(tx, block); err != nil {
 		return err
 	}
 
