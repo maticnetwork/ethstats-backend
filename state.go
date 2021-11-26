@@ -2,10 +2,14 @@ package main
 
 import (
 	"database/sql"
+	"embed"
 	"fmt"
-	"io/ioutil"
+	"io/fs"
 	"strconv"
 )
+
+//go:embed migrations/*.sql
+var migrations embed.FS
 
 type State struct {
 	db *sql.DB
@@ -42,31 +46,18 @@ func (s *State) migrate() error {
 		return err
 	}
 
-	execSQLFile := func(path string) error {
-		c, err := ioutil.ReadFile(path)
+	sqlMigrations, err := fs.ReadDir(migrations, "migrations")
+	if err != nil {
+		return err
+	}
+	for _, sqlExec := range sqlMigrations {
+		sqlTableQuery, err := fs.ReadFile(migrations, "migrations/"+sqlExec.Name())
 		if err != nil {
 			return err
 		}
-		sql := string(c)
-
-		_, err = tx.Exec(sql)
-		if err != nil {
+		if _, err = tx.Exec(string(sqlTableQuery)); err != nil {
 			return err
 		}
-		return nil
-	}
-
-	if err := execSQLFile("./migrations/01-block.sql"); err != nil {
-		return err
-	}
-	if err := execSQLFile("./migrations/02-reorgEvent.sql"); err != nil {
-		return err
-	}
-	if err := execSQLFile("./migrations/03-nodeInfo.sql"); err != nil {
-		return err
-	}
-	if err := execSQLFile("./migrations/04-nodeStats.sql"); err != nil {
-		return err
 	}
 
 	if err := tx.Commit(); err != nil {
