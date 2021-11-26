@@ -9,7 +9,6 @@ import (
 	_ "github.com/lib/pq"
 
 	"net/http"
-	"strings"
 
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
@@ -50,27 +49,11 @@ var pongMessage = []byte(`{
 
 var s *State
 
-func extractMsg(message []byte) (*Msg, error) {
-
-	var msg map[string]json.RawMessage
-
-	if err := json.Unmarshal(message, &msg); err != nil {
-		return nil, err
-	}
-
-	m := &Msg{
-		msg: msg,
-	}
-
-	return m, nil
-}
-
-func (m *Msg) decodeMsg(field string, out interface{}) error {
-
+func decodeMsg(message []byte) (*Msg, error) {
 	// FORMAT of msg
 	// {
 	// 	"emit": [
-	// 	   "..",
+	// 	   "<msg-type>",
 	// 	   {
 	// 		   "block": {
 	//				number : xxxxx
@@ -81,32 +64,85 @@ func (m *Msg) decodeMsg(field string, out interface{}) error {
 	// 	]
 	// }
 
-	var msg []json.RawMessage
-
-	if err := json.Unmarshal(m.msg["emit"], &msg); err != nil {
-		return err
+	var msg struct {
+		Emit []json.RawMessage
+	}
+	if err := json.Unmarshal(message, &msg); err != nil {
+		return nil, err
+	}
+	if len(msg.Emit) != 2 {
+		return nil, fmt.Errorf("2 items expected")
 	}
 
-	var msg2 map[string]json.RawMessage
-
-	if err := json.Unmarshal(msg[1], &msg2); err != nil {
-		return err
+	// decode typename as string
+	var typName string
+	if err := json.Unmarshal(msg.Emit[0], &typName); err != nil {
+		return nil, fmt.Errorf("failed to decode type: %v", err)
+	}
+	// decode data
+	var data map[string]json.RawMessage
+	if err := json.Unmarshal(msg.Emit[1], &data); err != nil {
+		return nil, fmt.Errorf("failed to decode data: %v", err)
 	}
 
-	data, ok := msg2[field]
-	if !ok {
-		return fmt.Errorf("message %s not found", field)
+	m := &Msg{
+		typ: typName,
+		msg: data,
 	}
-
-	if err := json.Unmarshal(data, out); err != nil {
-		return err
-	}
-
-	return nil
+	return m, nil
 }
 
 type Msg struct {
+	typ string
 	msg map[string]json.RawMessage
+}
+
+func (m *Msg) msgType() string {
+	return m.typ
+}
+
+func (m *Msg) decodeMsg(field string, out interface{}) error {
+	data, ok := m.msg[field]
+	if !ok {
+		return fmt.Errorf("message %s not found", field)
+	}
+	if err := json.Unmarshal(data, out); err != nil {
+		return err
+	}
+	return nil
+}
+
+func handleReorgMsg(nodeID string, msg *Msg) error {
+	var rawBlock Block
+	if err := msg.decodeMsg("block", &rawBlock); err != nil {
+		return err
+	}
+	if err := s.WriteReorgEvents(&rawBlock, &nodeID); err != nil {
+		return err
+	}
+	return nil
+}
+
+func handleBlockMsg(nodeID string, msg *Msg) error {
+	var rawBlock Block
+	if err := msg.decodeMsg("block", &rawBlock); err != nil {
+		return err
+	}
+	if err := s.WriteBlock(&rawBlock); err != nil {
+		return err
+	}
+	return nil
+}
+
+func handleStatsMsg(nodeID string, msg *Msg) error {
+	var rawStats NodeStats
+	if err := msg.decodeMsg("stats", &rawStats); err != nil {
+		return err
+	}
+	if err := s.WriteNodeStats(&rawStats, &nodeID); err != nil {
+		log.Info(err)
+	}
+	return nil
 }
 
 func echo(w http.ResponseWriter, r *http.Request) {
@@ -123,6 +159,12 @@ func echo(w http.ResponseWriter, r *http.Request) {
 	logged := false
 
 	var nodeID string
+
+	decoders := map[string]func(string, *Msg) error{
+		"block": handleBlockMsg,
+		"stats": handleStatsMsg,
+		"reorg": handleReorgMsg,
+	}
 
 	defer c.Close()
 	for {
@@ -142,69 +184,41 @@ func echo(w http.ResponseWriter, r *http.Request) {
 			logged = true
 		}
 
-		if strings.Contains(string(message), "pending") {
+		msg, err := decodeMsg(message)
+		if err != nil {
+			log.Println("failed to decode msg: %v", err)
+			continue
+		}
 
-			var msg map[string]interface{}
-			if err := json.Unmarshal(message, &msg); err != nil {
-				log.Println(err)
-			}
-
-		} else if strings.Contains(string(message), "REORGS DETECTED") {
-
-			m, err := extractMsg(message)
-			if err != nil {
-				log.Info(err)
-			}
-			var rawBlock Block
-			m.decodeMsg("block", &rawBlock)
-
-			s.WriteReorgEvents(&rawBlock, &nodeID)
-
-		} else if strings.Contains(string(message), "block") {
-
-			m, err := extractMsg(message)
-			if err != nil {
-				log.Info(err)
-			}
-			var rawBlock Block
-			m.decodeMsg("block", &rawBlock)
-
-			s.WriteBlock(&rawBlock)
-
-		} else if strings.Contains(string(message), "node-ping") {
-
+		if msg.msgType() == "node-ping" {
 			// send a pong
 			if err := c.WriteMessage(mt, pongMessage); err != nil {
 				log.Println("write:", err)
 				break
 			}
-		} else if strings.Contains(string(message), "stats") {
-
-			var rawStats NodeStats
-
-			m, err := extractMsg(message)
-			if err != nil {
-				log.Info(err)
-			}
-			m.decodeMsg("stats", &rawStats)
-
-			if err := s.WriteNodeStats(&rawStats, &nodeID); err != nil {
-				log.Info(err)
-			}
-
-		} else if strings.Contains(string(message), "hello") {
-			// First message sent by the user
-			m, err := extractMsg(message)
-			if err != nil {
-				log.Info(err)
-			}
-
+		} else if msg.msgType() == "hello" {
+			// gather the node info and keep the id during the session
 			var rawInfo NodeInfo
-			m.decodeMsg("info", &rawInfo)
-			m.decodeMsg("id", &nodeID)
-
+			if err := msg.decodeMsg("info", &rawInfo); err != nil {
+				log.Info(err)
+				continue
+			}
+			if err := msg.decodeMsg("id", &nodeID); err != nil {
+				log.Info(err)
+				continue
+			}
 			if err := s.WriteNodeInfo(&rawInfo, &rawInfo.Name); err != nil {
 				log.Info(err)
+			}
+		} else {
+			// use one of the decoders
+			decodeFn, ok := decoders[msg.msgType()]
+			if !ok {
+				log.Info("handler for msg '%s' not found", msg.msgType())
+			} else {
+				if err := decodeFn(nodeID, msg); err != nil {
+					log.Info("failed to handle msg '%s': %v", msg.msgType(), err)
+				}
 			}
 		}
 	}
