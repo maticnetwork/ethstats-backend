@@ -47,6 +47,9 @@ var pongMessage = []byte(`{
 	]
 }`)
 
+var messages = make(chan []byte, 1)
+var globalQuit = make(chan struct{})
+
 var s *State
 
 func decodeMsg(message []byte) (*Msg, error) {
@@ -145,6 +148,11 @@ func handleStatsMsg(nodeID string, msg *Msg) error {
 	return nil
 }
 
+func handlePendingMsg(nodeID string, msg *Msg) error {
+
+	return nil
+}
+
 func echo(w http.ResponseWriter, r *http.Request) {
 
 	upgrader.CheckOrigin = func(r *http.Request) bool {
@@ -161,9 +169,10 @@ func echo(w http.ResponseWriter, r *http.Request) {
 	var nodeID string
 
 	decoders := map[string]func(string, *Msg) error{
-		"block": handleBlockMsg,
-		"stats": handleStatsMsg,
-		"reorg": handleReorgMsg,
+		"block":   handleBlockMsg,
+		"stats":   handleStatsMsg,
+		"reorg":   handleReorgMsg,
+		"pending": handlePendingMsg,
 	}
 
 	defer c.Close()
@@ -173,7 +182,15 @@ func echo(w http.ResponseWriter, r *http.Request) {
 			log.Println("read:", err)
 			break
 		}
-		// log.Printf("recv: %d", mt)
+
+		select {
+		case messages <- message:
+
+		default:
+
+		}
+
+		log.Printf("recv: %s", message)
 
 		if !logged {
 			// send auth message
@@ -234,8 +251,11 @@ func main() {
 		log.Info(err)
 	}
 	defer s.db.Close()
-	log.Info("DB CONNECTED!")
+	log.Print("DB CONNECTED!")
+
+	go startGui()
 
 	http.HandleFunc("/", echo)
 	log.Fatal(http.ListenAndServe(*addr, nil))
+	// close(globalQuit)
 }
