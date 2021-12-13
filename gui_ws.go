@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/gorilla/websocket"
@@ -9,7 +11,13 @@ import (
 
 var guiWsAddr = "localhost:3001"
 
+// type msgGui struct {
+// 	Action string
+// 	Data   map[string]json.RawMessage
+// }
+
 func echoGui(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("LOL123")
 	upgrader.CheckOrigin = func(r *http.Request) bool {
 		return true
 	}
@@ -19,7 +27,8 @@ func echoGui(w http.ResponseWriter, r *http.Request) {
 	cGui, err = upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Print("upgrade:", err)
-		return
+		panic(err)
+		// return
 	}
 	defer cGui.Close()
 
@@ -30,7 +39,15 @@ func echoGui(w http.ResponseWriter, r *http.Request) {
 			select {
 			case message := <-messages:
 				// log.Printf("%s", message)
-				cGui.WriteMessage(1, message)
+				m, _ := decodeMsg(message)
+				out, _ := json.Marshal(struct {
+					Action string                     `json:"action"`
+					Data   map[string]json.RawMessage `json:"data"`
+				}{
+					Action: m.typ,
+					Data:   m.msg,
+				})
+				cGui.WriteMessage(1, []byte(out))
 			case <-globalQuit: // will explain this in the last section
 				return
 			}
@@ -72,7 +89,7 @@ func echoGui(w http.ResponseWriter, r *http.Request) {
 
 func startGui() {
 
-	http.HandleFunc("/gui", echoGui)
+	http.HandleFunc("/primus/", echoGui)
 	log.Fatal(http.ListenAndServe(guiWsAddr, nil))
 	log.Info("Started server at 3001")
 }

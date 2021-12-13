@@ -190,7 +190,7 @@ func echo(w http.ResponseWriter, r *http.Request) {
 
 		}
 
-		log.Printf("recv: %s", message)
+		// log.Printf("recv: %s", message)
 
 		if !logged {
 			// send auth message
