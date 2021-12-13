@@ -46,42 +46,40 @@ var pongMessage = []byte(`{
 	]
 }`)
 
-var s *State
-
-func handleReorgMsg(nodeID string, msg *Msg) error {
+func (s *Server) handleReorgMsg(nodeID string, msg *Msg) error {
 	var rawBlock Block
 	if err := msg.decodeMsg("block", &rawBlock); err != nil {
 		return err
 	}
-	if err := s.WriteReorgEvents(&rawBlock, &nodeID); err != nil {
+	if err := s.state.WriteReorgEvents(&rawBlock, &nodeID); err != nil {
 		return err
 	}
 	return nil
 }
 
-func handleBlockMsg(nodeID string, msg *Msg) error {
+func (s *Server) handleBlockMsg(nodeID string, msg *Msg) error {
 	var rawBlock Block
 	if err := msg.decodeMsg("block", &rawBlock); err != nil {
 		return err
 	}
-	if err := s.WriteBlock(&rawBlock); err != nil {
+	if err := s.state.WriteBlock(&rawBlock); err != nil {
 		return err
 	}
 	return nil
 }
 
-func handleStatsMsg(nodeID string, msg *Msg) error {
+func (s *Server) handleStatsMsg(nodeID string, msg *Msg) error {
 	var rawStats NodeStats
 	if err := msg.decodeMsg("stats", &rawStats); err != nil {
 		return err
 	}
-	if err := s.WriteNodeStats(&rawStats, &nodeID); err != nil {
+	if err := s.state.WriteNodeStats(&rawStats, &nodeID); err != nil {
 		log.Info(err)
 	}
 	return nil
 }
 
-func echo(w http.ResponseWriter, r *http.Request) {
+func (s *Server) echo(w http.ResponseWriter, r *http.Request) {
 
 	upgrader.CheckOrigin = func(r *http.Request) bool {
 		return true
@@ -97,9 +95,9 @@ func echo(w http.ResponseWriter, r *http.Request) {
 	var nodeID string
 
 	decoders := map[string]func(string, *Msg) error{
-		"block": handleBlockMsg,
-		"stats": handleStatsMsg,
-		"reorg": handleReorgMsg,
+		"block": s.handleBlockMsg,
+		"stats": s.handleStatsMsg,
+		"reorg": s.handleReorgMsg,
 	}
 
 	defer c.Close()
@@ -143,7 +141,7 @@ func echo(w http.ResponseWriter, r *http.Request) {
 				log.Info(err)
 				continue
 			}
-			if err := s.WriteNodeInfo(&rawInfo, &rawInfo.Name); err != nil {
+			if err := s.state.WriteNodeInfo(&rawInfo, &rawInfo.Name); err != nil {
 				log.Info(err)
 			}
 		} else {
@@ -160,18 +158,31 @@ func echo(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type Server struct {
+	state *State
+}
+
+func (s *Server) Close() {
+	s.state.db.Close()
+}
+
 func main() {
 	flag.Parse()
 
 	var err error
+
 	path := fmt.Sprintf("host=localhost port=5432 user=postgres password=%s dbname=%s sslmode=disable", os.Getenv("DBPASS"), os.Getenv("DBNAME"))
-	s, err = NewState(path)
+	state, err := NewState(path)
 	if err != nil {
 		log.Info(err)
 	}
-	defer s.db.Close()
+	srv := &Server{
+		state: state,
+	}
+	defer srv.Close()
+
 	log.Info("DB CONNECTED!")
 
-	http.HandleFunc("/", echo)
+	http.HandleFunc("/", srv.echo)
 	log.Fatal(http.ListenAndServe(*addr, nil))
 }
