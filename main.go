@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -48,69 +47,6 @@ var pongMessage = []byte(`{
 }`)
 
 var s *State
-
-func decodeMsg(message []byte) (*Msg, error) {
-	// FORMAT of msg
-	// {
-	// 	"emit": [
-	// 	   "<msg-type>",
-	// 	   {
-	// 		   "block": {
-	//				number : xxxxx
-	//				hash : xxxxx
-	//				...
-	//			}
-	// 	   }
-	// 	]
-	// }
-
-	var msg struct {
-		Emit []json.RawMessage
-	}
-	if err := json.Unmarshal(message, &msg); err != nil {
-		return nil, err
-	}
-	if len(msg.Emit) != 2 {
-		return nil, fmt.Errorf("2 items expected")
-	}
-
-	// decode typename as string
-	var typName string
-	if err := json.Unmarshal(msg.Emit[0], &typName); err != nil {
-		return nil, fmt.Errorf("failed to decode type: %v", err)
-	}
-	// decode data
-	var data map[string]json.RawMessage
-	if err := json.Unmarshal(msg.Emit[1], &data); err != nil {
-		return nil, fmt.Errorf("failed to decode data: %v", err)
-	}
-
-	m := &Msg{
-		typ: typName,
-		msg: data,
-	}
-	return m, nil
-}
-
-type Msg struct {
-	typ string
-	msg map[string]json.RawMessage
-}
-
-func (m *Msg) msgType() string {
-	return m.typ
-}
-
-func (m *Msg) decodeMsg(field string, out interface{}) error {
-	data, ok := m.msg[field]
-	if !ok {
-		return fmt.Errorf("message %s not found", field)
-	}
-	if err := json.Unmarshal(data, out); err != nil {
-		return err
-	}
-	return nil
-}
 
 func handleReorgMsg(nodeID string, msg *Msg) error {
 	var rawBlock Block
@@ -184,9 +120,9 @@ func echo(w http.ResponseWriter, r *http.Request) {
 			logged = true
 		}
 
-		msg, err := decodeMsg(message)
+		msg, err := DecodeMsg(message)
 		if err != nil {
-			log.Println("failed to decode msg: %v", err)
+			log.Printf("failed to decode msg: %v", err)
 			continue
 		}
 
@@ -214,10 +150,10 @@ func echo(w http.ResponseWriter, r *http.Request) {
 			// use one of the decoders
 			decodeFn, ok := decoders[msg.msgType()]
 			if !ok {
-				log.Info("handler for msg '%s' not found", msg.msgType())
+				log.Infof("handler for msg '%s' not found", msg.msgType())
 			} else {
 				if err := decodeFn(nodeID, msg); err != nil {
-					log.Info("failed to handle msg '%s': %v", msg.msgType(), err)
+					log.Infof("failed to handle msg '%s': %v", msg.msgType(), err)
 				}
 			}
 		}
