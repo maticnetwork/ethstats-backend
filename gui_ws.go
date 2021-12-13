@@ -2,8 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
@@ -16,8 +16,46 @@ var guiWsAddr = "localhost:3001"
 // 	Data   map[string]json.RawMessage
 // }
 
+type guiBlock struct {
+	Block
+	Received    int64 `json:"received"`
+	Arrived     int64 `json:"arrived"`
+	Fork        int   `json:"fork"`
+	Propagation int   `json:"propagation"`
+	Time        int   `json:"time"`
+	Trusted     bool  `json:"trusted"`
+}
+
+type guiData struct {
+	ID             string   `json:"id"`
+	Block          guiBlock `json:"block"`
+	PropagationAvg int      `json:"propagationAvg"`
+	History        [40]int  `json:"history"`
+}
+
+func populateGuiBlock(msg *Msg) (guiBlock, error) {
+
+	now := time.Now()
+	secs := now.Unix()
+
+	var rawBlock guiBlock
+
+	if err := msg.decodeMsg("block", &rawBlock); err != nil {
+		return rawBlock, err
+	}
+
+	rawBlock.Arrived = secs
+	rawBlock.Received = secs
+	rawBlock.Fork = 0
+	rawBlock.Propagation = 0
+	rawBlock.Time = 1005
+	rawBlock.Trusted = false
+
+	return rawBlock, nil
+}
+
 func echoGui(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("LOL123")
+
 	upgrader.CheckOrigin = func(r *http.Request) bool {
 		return true
 	}
@@ -40,12 +78,20 @@ func echoGui(w http.ResponseWriter, r *http.Request) {
 			case message := <-messages:
 				// log.Printf("%s", message)
 				m, _ := decodeMsg(message)
+				block2, _ := populateGuiBlock(m)
+				x := [40]int{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1}
+				dataOut := &guiData{
+					Block:          block2,
+					ID:             "node1",
+					PropagationAvg: 0,
+					History:        x,
+				}
 				out, _ := json.Marshal(struct {
-					Action string                     `json:"action"`
-					Data   map[string]json.RawMessage `json:"data"`
+					Action string   `json:"action"`
+					Data   *guiData `json:"data"`
 				}{
 					Action: m.typ,
-					Data:   m.msg,
+					Data:   dataOut,
 				})
 				cGui.WriteMessage(1, []byte(out))
 			case <-globalQuit: // will explain this in the last section
