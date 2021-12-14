@@ -155,6 +155,8 @@ func handlePendingMsg(nodeID string, msg *Msg) error {
 
 func echo(w http.ResponseWriter, r *http.Request) {
 
+	quitGuiConn := make(chan bool)
+
 	upgrader.CheckOrigin = func(r *http.Request) bool {
 		return true
 	}
@@ -175,13 +177,18 @@ func echo(w http.ResponseWriter, r *http.Request) {
 		"pending": handlePendingMsg,
 	}
 
-	defer c.Close()
+	defer func() {
+		c.Close()
+		quitGuiConn <- true
+	}()
+
 	for {
 		mt, message, err := c.ReadMessage()
 		if err != nil {
 			log.Println("read:", err)
 			break
 		}
+		// fmt.Print(string(message))
 
 		select {
 		case messages <- message:
@@ -214,6 +221,7 @@ func echo(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 		} else if msg.msgType() == "hello" {
+			go connectToGui(message, quitGuiConn, c)
 			// gather the node info and keep the id during the session
 			var rawInfo NodeInfo
 			if err := msg.decodeMsg("info", &rawInfo); err != nil {
@@ -231,7 +239,7 @@ func echo(w http.ResponseWriter, r *http.Request) {
 			// use one of the decoders
 			decodeFn, ok := decoders[msg.msgType()]
 			if !ok {
-				log.Info("handler for msg '%s' not found", msg.msgType())
+				log.Info("handler for msg '%s' not found : ", msg.msgType())
 			} else {
 				if err := decodeFn(nodeID, msg); err != nil {
 					log.Info("failed to handle msg '%s': %v", msg.msgType(), err)
@@ -253,9 +261,7 @@ func main() {
 	defer s.db.Close()
 	log.Print("DB CONNECTED!")
 
-	go startGui()
-
 	http.HandleFunc("/", echo)
 	log.Fatal(http.ListenAndServe(*addr, nil))
-	// close(globalQuit)
+	close(globalQuit)
 }

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -55,7 +55,7 @@ func populateGuiBlock(msg *Msg) (guiBlock, error) {
 }
 
 func echoGui(w http.ResponseWriter, r *http.Request) {
-
+	fmt.Print("LOLOLOLOLOL")
 	upgrader.CheckOrigin = func(r *http.Request) bool {
 		return true
 	}
@@ -77,23 +77,24 @@ func echoGui(w http.ResponseWriter, r *http.Request) {
 			select {
 			case message := <-messages:
 				// log.Printf("%s", message)
-				m, _ := decodeMsg(message)
-				block2, _ := populateGuiBlock(m)
-				x := [40]int{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1}
-				dataOut := &guiData{
-					Block:          block2,
-					ID:             "node1",
-					PropagationAvg: 0,
-					History:        x,
-				}
-				out, _ := json.Marshal(struct {
-					Action string   `json:"action"`
-					Data   *guiData `json:"data"`
-				}{
-					Action: m.typ,
-					Data:   dataOut,
-				})
-				cGui.WriteMessage(1, []byte(out))
+				// m, _ := decodeMsg(message)
+				// block2, _ := populateGuiBlock(m)
+				// x := [40]int{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1}
+				// dataOut := &guiData{
+				// 	Block:          block2,
+				// 	ID:             "node1",
+				// 	PropagationAvg: 0,
+				// 	History:        x,
+				// }
+				// out, _ := json.Marshal(struct {
+				// 	Action string   `json:"action"`
+				// 	Data   *guiData `json:"data"`
+				// }{
+				// 	Action: m.typ,
+				// 	Data:   dataOut,
+				// })
+				fmt.Print("LOL", message)
+				cGui.WriteMessage(1, message)
 			case <-globalQuit: // will explain this in the last section
 				return
 			}
