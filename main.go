@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -47,105 +46,40 @@ var pongMessage = []byte(`{
 	]
 }`)
 
-var s *State
-
-func decodeMsg(message []byte) (*Msg, error) {
-	// FORMAT of msg
-	// {
-	// 	"emit": [
-	// 	   "<msg-type>",
-	// 	   {
-	// 		   "block": {
-	//				number : xxxxx
-	//				hash : xxxxx
-	//				...
-	//			}
-	// 	   }
-	// 	]
-	// }
-
-	var msg struct {
-		Emit []json.RawMessage
-	}
-	if err := json.Unmarshal(message, &msg); err != nil {
-		return nil, err
-	}
-	if len(msg.Emit) != 2 {
-		return nil, fmt.Errorf("2 items expected")
-	}
-
-	// decode typename as string
-	var typName string
-	if err := json.Unmarshal(msg.Emit[0], &typName); err != nil {
-		return nil, fmt.Errorf("failed to decode type: %v", err)
-	}
-	// decode data
-	var data map[string]json.RawMessage
-	if err := json.Unmarshal(msg.Emit[1], &data); err != nil {
-		return nil, fmt.Errorf("failed to decode data: %v", err)
-	}
-
-	m := &Msg{
-		typ: typName,
-		msg: data,
-	}
-	return m, nil
-}
-
-type Msg struct {
-	typ string
-	msg map[string]json.RawMessage
-}
-
-func (m *Msg) msgType() string {
-	return m.typ
-}
-
-func (m *Msg) decodeMsg(field string, out interface{}) error {
-	data, ok := m.msg[field]
-	if !ok {
-		return fmt.Errorf("message %s not found", field)
-	}
-	if err := json.Unmarshal(data, out); err != nil {
-		return err
-	}
-	return nil
-}
-
-func handleReorgMsg(nodeID string, msg *Msg) error {
+func (s *Server) handleReorgMsg(nodeID string, msg *Msg) error {
 	var rawBlock Block
 	if err := msg.decodeMsg("block", &rawBlock); err != nil {
 		return err
 	}
-	if err := s.WriteReorgEvents(&rawBlock, &nodeID); err != nil {
+	if err := s.state.WriteReorgEvents(&rawBlock, &nodeID); err != nil {
 		return err
 	}
 	return nil
 }
 
-func handleBlockMsg(nodeID string, msg *Msg) error {
+func (s *Server) handleBlockMsg(nodeID string, msg *Msg) error {
 	var rawBlock Block
 	if err := msg.decodeMsg("block", &rawBlock); err != nil {
 		return err
 	}
-	if err := s.WriteBlock(&rawBlock); err != nil {
+	if err := s.state.WriteBlock(&rawBlock); err != nil {
 		return err
 	}
 	return nil
 }
 
-func handleStatsMsg(nodeID string, msg *Msg) error {
+func (s *Server) handleStatsMsg(nodeID string, msg *Msg) error {
 	var rawStats NodeStats
 	if err := msg.decodeMsg("stats", &rawStats); err != nil {
 		return err
 	}
-	if err := s.WriteNodeStats(&rawStats, &nodeID); err != nil {
+	if err := s.state.WriteNodeStats(&rawStats, &nodeID); err != nil {
 		log.Info(err)
 	}
 	return nil
 }
 
-func echo(w http.ResponseWriter, r *http.Request) {
+func (s *Server) echo(w http.ResponseWriter, r *http.Request) {
 
 	upgrader.CheckOrigin = func(r *http.Request) bool {
 		return true
@@ -161,9 +95,9 @@ func echo(w http.ResponseWriter, r *http.Request) {
 	var nodeID string
 
 	decoders := map[string]func(string, *Msg) error{
-		"block": handleBlockMsg,
-		"stats": handleStatsMsg,
-		"reorg": handleReorgMsg,
+		"block": s.handleBlockMsg,
+		"stats": s.handleStatsMsg,
+		"reorg": s.handleReorgMsg,
 	}
 
 	defer c.Close()
@@ -184,9 +118,9 @@ func echo(w http.ResponseWriter, r *http.Request) {
 			logged = true
 		}
 
-		msg, err := decodeMsg(message)
+		msg, err := DecodeMsg(message)
 		if err != nil {
-			log.Println("failed to decode msg: %v", err)
+			log.Printf("failed to decode msg: %v", err)
 			continue
 		}
 
@@ -207,35 +141,48 @@ func echo(w http.ResponseWriter, r *http.Request) {
 				log.Info(err)
 				continue
 			}
-			if err := s.WriteNodeInfo(&rawInfo, &rawInfo.Name); err != nil {
+			if err := s.state.WriteNodeInfo(&rawInfo, &rawInfo.Name); err != nil {
 				log.Info(err)
 			}
 		} else {
 			// use one of the decoders
 			decodeFn, ok := decoders[msg.msgType()]
 			if !ok {
-				log.Info("handler for msg '%s' not found", msg.msgType())
+				log.Infof("handler for msg '%s' not found", msg.msgType())
 			} else {
 				if err := decodeFn(nodeID, msg); err != nil {
-					log.Info("failed to handle msg '%s': %v", msg.msgType(), err)
+					log.Infof("failed to handle msg '%s': %v", msg.msgType(), err)
 				}
 			}
 		}
 	}
 }
 
+type Server struct {
+	state *State
+}
+
+func (s *Server) Close() {
+	s.state.db.Close()
+}
+
 func main() {
 	flag.Parse()
 
 	var err error
+
 	path := fmt.Sprintf("host=localhost port=5432 user=postgres password=%s dbname=%s sslmode=disable", os.Getenv("DBPASS"), os.Getenv("DBNAME"))
-	s, err = NewState(path)
+	state, err := NewState(path)
 	if err != nil {
 		log.Info(err)
 	}
-	defer s.db.Close()
+	srv := &Server{
+		state: state,
+	}
+	defer srv.Close()
+
 	log.Info("DB CONNECTED!")
 
-	http.HandleFunc("/", echo)
+	http.HandleFunc("/", srv.echo)
 	log.Fatal(http.ListenAndServe(*addr, nil))
 }

@@ -16,14 +16,11 @@ type State struct {
 }
 
 func NewState(path string) (*State, error) {
-
 	db, err := sql.Open("postgres", path)
 	if err != nil {
 		return nil, err
 	}
-
 	return NewStateWithDB(db)
-
 }
 
 func NewStateWithDB(db *sql.DB) (*State, error) {
@@ -38,6 +35,10 @@ func NewStateWithDB(db *sql.DB) (*State, error) {
 		return nil, err
 	}
 	return s, nil
+}
+
+func (s *State) Close() {
+	s.db.Close()
 }
 
 func (s *State) migrate() error {
