@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -54,8 +53,8 @@ func populateGuiBlock(msg *Msg) (guiBlock, error) {
 	return rawBlock, nil
 }
 
-func echoGui(w http.ResponseWriter, r *http.Request) {
-	fmt.Print("LOLOLOLOLOL")
+func (s *Server) echoGui(w http.ResponseWriter, r *http.Request) {
+
 	upgrader.CheckOrigin = func(r *http.Request) bool {
 		return true
 	}
@@ -93,7 +92,7 @@ func echoGui(w http.ResponseWriter, r *http.Request) {
 				// 	Action: m.typ,
 				// 	Data:   dataOut,
 				// })
-				fmt.Print("LOL", message)
+
 				cGui.WriteMessage(1, message)
 			case <-globalQuit: // will explain this in the last section
 				return
@@ -118,7 +117,7 @@ func echoGui(w http.ResponseWriter, r *http.Request) {
 			logged = true
 		}
 
-		msg, err := decodeMsg(message)
+		msg, err := DecodeMsg(message)
 		if err != nil {
 			log.Println("failed to decode msg: %v", err)
 			continue
@@ -134,9 +133,9 @@ func echoGui(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func startGui() {
+func (s *Server) startGui() {
 
-	http.HandleFunc("/primus/", echoGui)
+	http.HandleFunc("/primus/", s.echoGui)
 	log.Fatal(http.ListenAndServe(guiWsAddr, nil))
 	log.Info("Started server at 3001")
 }
