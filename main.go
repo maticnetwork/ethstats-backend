@@ -88,8 +88,7 @@ func (s *Server) handlePendingMsg(nodeID string, msg *Msg) error {
 }
 
 func (s *Server) echo(w http.ResponseWriter, r *http.Request) {
-
-	quitGuiConn := make(chan bool)
+	quitGuiConn := make(chan bool, 1)
 
 	upgrader.CheckOrigin = func(r *http.Request) bool {
 		return true
@@ -155,7 +154,18 @@ func (s *Server) echo(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 		} else if msg.msgType() == "hello" {
-			go connectToGui(message, quitGuiConn, c)
+
+			parentConn := &connection{
+				conn:           c,
+				authMsg:        message,
+				quitGuiConn:    quitGuiConn,
+				connectedToGui: false,
+			}
+
+			if !parentConn.connectedToGui {
+				go parentConn.connectToGui()
+			}
+
 			// gather the node info and keep the id during the session
 			var rawInfo NodeInfo
 			if err := msg.decodeMsg("info", &rawInfo); err != nil {
@@ -185,6 +195,13 @@ func (s *Server) echo(w http.ResponseWriter, r *http.Request) {
 
 type Server struct {
 	state *State
+}
+
+type connection struct {
+	conn           *websocket.Conn
+	authMsg        []byte
+	quitGuiConn    chan bool
+	connectedToGui bool
 }
 
 func (s *Server) Close() {

@@ -14,67 +14,81 @@ var u = url.URL{
 	Path:   "/api",
 }
 
-func relayClientToBor(childConn *websocket.Conn, parentConn *websocket.Conn, errTimer chan bool) {
+func (parentConn connection) relayClientToBor(childConn *websocket.Conn) {
 
 	for {
 
 		mt, message, err := childConn.ReadMessage()
 		if err != nil {
-			fmt.Println("w1", err)
-			break
+			childConn.Close()
+			return
 		}
-		parentConn.WriteMessage(mt, message)
+		parentConn.conn.WriteMessage(mt, message)
 
 	}
 }
 
-func connectToGui(authMsg []byte, quitGuiConn chan bool, parentConn *websocket.Conn) {
+func (parentConn connection) connectToGui() {
 
 	errTimer := make(chan bool, 5)
 	errTimer <- true
+
+	defer close(errTimer)
 
 	for {
 		select {
 		case <-globalQuit:
 			return
-		case <-quitGuiConn:
+		case <-parentConn.quitGuiConn:
 			return
 		case <-errTimer:
+
+			if parentConn.connectedToGui {
+				return
+			}
+
 			c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 			if err != nil {
-				fmt.Println("w2", err)
 				fmt.Println("Retrying in 5 secs")
 				time.Sleep(5 * time.Second)
+				parentConn.connectedToGui = false
 				errTimer <- true
 				continue
+			} else {
+				parentConn.connectedToGui = true
+				c.WriteMessage(websocket.TextMessage, parentConn.authMsg)
 			}
 
 			defer func() {
-				fmt.Println("Closing gui conn")
 				c.Close()
 			}()
 
-			go relayClientToBor(c, parentConn, errTimer)
-
-			c.WriteMessage(websocket.TextMessage, authMsg)
+			go parentConn.relayClientToBor(c)
 
 			for {
 				select {
 				case message := <-messages:
-					c.WriteMessage(websocket.TextMessage, message)
+					err := c.WriteMessage(websocket.TextMessage, message)
 					if err != nil {
-						fmt.Println("w3", err)
 						fmt.Println("Retrying in 5 secs")
 						time.Sleep(5 * time.Second)
-						errTimer <- true
-						continue
+						parentConn.reconnectToGui()
+						return
 					}
 				case <-globalQuit:
 					return
-				case <-quitGuiConn:
+				case <-parentConn.quitGuiConn:
 					return
 				}
 			}
 		}
 	}
+}
+
+func (parentConn connection) reconnectToGui() {
+	fmt.Println("Trying to reconnect")
+
+	parentConn.connectedToGui = false
+
+	go parentConn.connectToGui()
 }
