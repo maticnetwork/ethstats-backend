@@ -115,6 +115,30 @@ func (s *State) WriteBlock(block *Block) error {
 	return nil
 }
 
+func (s *State) GetBlockByNumber(blockNumber int) (BlockDB, error) {
+
+	var rawBlock BlockDB
+	insertDynStmt := `SELECT * FROM public.blocks where block_number = $1`
+	row := s.db.QueryRow(insertDynStmt, blockNumber)
+	err := row.Scan(&rawBlock.Number, &rawBlock.Hash, &rawBlock.ParentHash, &rawBlock.Timestamp, &rawBlock.Miner, &rawBlock.GasUsed, &rawBlock.GasLimit, &rawBlock.Diff, &rawBlock.TotalDiff, &rawBlock.TxHash, &rawBlock.Txs, &rawBlock.Uncles, &rawBlock.Root)
+	if err != nil {
+		return rawBlock, err
+	}
+	return rawBlock, nil
+}
+
+func (s *State) GetBlockByHash(blockHash string) (BlockDB, error) {
+
+	var rawBlock BlockDB
+	insertDynStmt := `SELECT * FROM public.blocks where block_hash = $1`
+	row := s.db.QueryRow(insertDynStmt, blockHash)
+	err := row.Scan(&rawBlock.Number, &rawBlock.Hash, &rawBlock.ParentHash, &rawBlock.Timestamp, &rawBlock.Miner, &rawBlock.GasUsed, &rawBlock.GasLimit, &rawBlock.Diff, &rawBlock.TotalDiff, &rawBlock.TxHash, &rawBlock.Txs, &rawBlock.Uncles, &rawBlock.Root)
+	if err != nil {
+		return rawBlock, err
+	}
+	return rawBlock, nil
+}
+
 func (s *State) WriteReorgEvents(block *Block, nodeID *string) error {
 
 	tx, err := s.db.Begin()

@@ -80,7 +80,6 @@ func (s *Server) handleStatsMsg(nodeID string, msg *Msg) error {
 }
 
 func (s *Server) echo(w http.ResponseWriter, r *http.Request) {
-
 	upgrader.CheckOrigin = func(r *http.Request) bool {
 		return true
 	}
@@ -107,7 +106,6 @@ func (s *Server) echo(w http.ResponseWriter, r *http.Request) {
 			log.Println("read:", err)
 			break
 		}
-		// log.Printf("recv: %d", mt)
 
 		if !logged {
 			// send auth message
@@ -184,5 +182,7 @@ func main() {
 	log.Info("DB CONNECTED!")
 
 	http.HandleFunc("/", srv.echo)
+	http.HandleFunc("/api/getBlock/", srv.getBlock)
+
 	log.Fatal(http.ListenAndServe(*addr, nil))
 }
