@@ -29,3 +29,20 @@ type NodeStats struct {
 	GasPrice int  `json:"gasPrice"`
 	Uptime   int  `json:"uptime"`
 }
+
+// blockStats is the information to report about individual blocks.
+type BlockDB struct {
+	Number     int    `json:"number"`
+	Hash       string `json:"hash"`
+	ParentHash string `json:"parentHash"`
+	Timestamp  int    `json:"timestamp"`
+	Miner      string `json:"miner"`
+	GasUsed    uint64 `json:"gasUsed"`
+	GasLimit   uint64 `json:"gasLimit"`
+	Diff       string `json:"difficulty"`
+	TotalDiff  string `json:"totalDifficulty"`
+	Txs        int    `json:"transactions"`
+	TxHash     string `json:"transactionsRoot"`
+	Root       string `json:"stateRoot"`
+	Uncles     int    `json:"uncles"`
+}
