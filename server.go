@@ -123,6 +123,9 @@ func (s *Server) echo(w http.ResponseWriter, r *http.Request) {
 		quitGuiConn <- true
 	}()
 
+	proxy := newWsProxy(c, "")
+	defer proxy.close()
+
 	for {
 		mt, message, err := c.ReadMessage()
 		if err != nil {
@@ -130,6 +133,8 @@ func (s *Server) echo(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		// fmt.Print(string(message))
+
+		proxy.Proxy(message)
 
 		select {
 		case messages <- message:
@@ -163,16 +168,18 @@ func (s *Server) echo(w http.ResponseWriter, r *http.Request) {
 			}
 		} else if msg.msgType() == "hello" {
 
-			parentConn := &connection{
-				conn:           c,
-				authMsg:        message,
-				quitGuiConn:    quitGuiConn,
-				connectedToGui: false,
-			}
+			/*
+				parentConn := &wsProxy{
+					conn:           c,
+					authMsg:        message,
+					quitGuiConn:    quitGuiConn,
+					connectedToGui: false,
+				}
 
-			if !parentConn.connectedToGui {
-				go parentConn.connectToGui()
-			}
+				if !parentConn.connectedToGui {
+					go parentConn.connectToGui()
+				}
+			*/
 
 			// gather the node info and keep the id during the session
 			var rawInfo NodeInfo
@@ -191,7 +198,7 @@ func (s *Server) echo(w http.ResponseWriter, r *http.Request) {
 			// use one of the decoders
 			decodeFn, ok := decoders[msg.msgType()]
 			if !ok {
-				log.Info("handler for msg '%s' not found : ", msg.msgType())
+				log.Infof("handler for msg '%s' not found : ", msg.msgType())
 			} else {
 				if err := decodeFn(nodeID, msg); err != nil {
 					log.Infof("failed to handle msg '%s': %v", msg.msgType(), err)
