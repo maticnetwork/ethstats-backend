@@ -5,23 +5,8 @@ import (
 
 	"net/http"
 
-	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 )
-
-var upgrader = websocket.Upgrader{} // use default options
-
-var loggedMessage = []byte(`{
-	"emit": ["ready"]
-}`)
-
-// pong message needs to send two messages (second is not read)
-var pongMessage = []byte(`{
-	"emit": [
-		"node-pong",
-		{}
-	]
-}`)
 
 type Config struct {
 	CollectorAddr string
@@ -54,20 +39,6 @@ func (s *Server) startCollectorServer() {
 	log.Fatal(http.ListenAndServe(s.config.CollectorAddr, nil))
 }
 
-var messages = make(chan []byte, 1)
-var globalQuit = make(chan struct{})
-
-func (s *Server) handleReorgMsg(nodeID string, msg *Msg) error {
-	var rawBlock Block
-	if err := msg.decodeMsg("block", &rawBlock); err != nil {
-		return err
-	}
-	if err := s.state.WriteReorgEvents(&rawBlock, &nodeID); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (s *Server) handleBlockMsg(nodeID string, msg *Msg) error {
 	var rawBlock Block
 	if err := msg.decodeMsg("block", &rawBlock); err != nil {
@@ -91,13 +62,10 @@ func (s *Server) handleStatsMsg(nodeID string, msg *Msg) error {
 }
 
 func (s *Server) handlePendingMsg(nodeID string, msg *Msg) error {
-
 	return nil
 }
 
 func (s *Server) echo(w http.ResponseWriter, r *http.Request) {
-	quitGuiConn := make(chan bool, 1)
-
 	upgrader.CheckOrigin = func(r *http.Request) bool {
 		return true
 	}
@@ -110,20 +78,17 @@ func (s *Server) echo(w http.ResponseWriter, r *http.Request) {
 	logged := false
 
 	var nodeID string
-
 	decoders := map[string]func(string, *Msg) error{
 		"block":   s.handleBlockMsg,
 		"stats":   s.handleStatsMsg,
-		"reorg":   s.handleReorgMsg,
 		"pending": s.handlePendingMsg,
 	}
 
 	defer func() {
 		c.Close()
-		quitGuiConn <- true
 	}()
 
-	proxy := newWsProxy(c, "")
+	proxy := newWsProxy(nil, c, "")
 	defer proxy.close()
 
 	for {
@@ -135,15 +100,6 @@ func (s *Server) echo(w http.ResponseWriter, r *http.Request) {
 		// fmt.Print(string(message))
 
 		proxy.Proxy(message)
-
-		select {
-		case messages <- message:
-
-		default:
-
-		}
-
-		// log.Printf("recv: %s", message)
 
 		if !logged {
 			// send auth message
@@ -167,20 +123,6 @@ func (s *Server) echo(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 		} else if msg.msgType() == "hello" {
-
-			/*
-				parentConn := &wsProxy{
-					conn:           c,
-					authMsg:        message,
-					quitGuiConn:    quitGuiConn,
-					connectedToGui: false,
-				}
-
-				if !parentConn.connectedToGui {
-					go parentConn.connectToGui()
-				}
-			*/
-
 			// gather the node info and keep the id during the session
 			var rawInfo NodeInfo
 			if err := msg.decodeMsg("info", &rawInfo); err != nil {
