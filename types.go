@@ -4,6 +4,23 @@ type TxStats struct {
 	Hash string `json:"hash"`
 }
 
+// blockStats is the information to report about individual blocks.
+type Block struct {
+	Number     int       `json:"number"`
+	Hash       string    `json:"hash"`
+	ParentHash string    `json:"parentHash"`
+	Timestamp  int       `json:"timestamp"`
+	Miner      string    `json:"miner"`
+	GasUsed    uint64    `json:"gasUsed"`
+	GasLimit   uint64    `json:"gasLimit"`
+	Diff       string    `json:"difficulty"`
+	TotalDiff  string    `json:"totalDifficulty"`
+	Txs        []TxStats `json:"transactions"`
+	TxHash     string    `json:"transactionsRoot"`
+	Root       string    `json:"stateRoot"`
+	Uncles     []Block   `json:"uncles"`
+}
+
 // nodeInfo is the collection of meta information about a node that is displayed
 // on the monitoring page.
 type NodeInfo struct {
