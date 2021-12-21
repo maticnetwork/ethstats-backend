@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/hashicorp/go-hclog"
 )
 
 var (
@@ -13,10 +15,11 @@ var (
 )
 
 func main() {
-	var wsAddr, dbEndpoint string
+	var wsAddr, dbEndpoint, logLevel string
 
 	flag.StringVar(&dbEndpoint, "db-endpoint", defaultDBEndpoint, "")
 	flag.StringVar(&wsAddr, "ws-addr", "localhost:3000", "ws service address for collector")
+	flag.StringVar(&logLevel, "log-level", "Log level", "info")
 	flag.Parse()
 
 	config := &Config{
@@ -24,7 +27,8 @@ func main() {
 		CollectorAddr: wsAddr,
 	}
 
-	srv, err := NewServer(config)
+	logger := hclog.New(&hclog.LoggerOptions{Level: hclog.LevelFromString(logLevel)})
+	srv, err := NewServer(logger, config)
 	if err != nil {
 		fmt.Printf("[ERROR]: %v", err)
 		os.Exit(0)

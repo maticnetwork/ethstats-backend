@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"io/ioutil"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -234,7 +233,7 @@ func TestWsCollector_Session(t *testing.T) {
 
 	ws := &wsCollector{
 		manager: sm,
-		logger:  log.New(ioutil.Discard, "", 0),
+		logger:  hclog.NewNullLogger(),
 	}
 
 	srv := newMockWsServer(t, "", ws.handle)
@@ -257,7 +256,7 @@ func TestWsCollector_PingPong(t *testing.T) {
 
 	ws := &wsCollector{
 		manager: sm,
-		logger:  log.New(ioutil.Discard, "", 0),
+		logger:  hclog.NewNullLogger(),
 	}
 	srv := newMockWsServer(t, "", ws.handle)
 

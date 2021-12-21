@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 
+	"github.com/hashicorp/go-hclog"
 	_ "github.com/lib/pq"
 )
 
@@ -12,16 +13,18 @@ type Config struct {
 }
 
 type Server struct {
+	logger hclog.Logger
 	config *Config
 	state  *State
 }
 
-func NewServer(config *Config) (*Server, error) {
+func NewServer(logger hclog.Logger, config *Config) (*Server, error) {
 	state, err := NewState(config.Endpoint)
 	if err != nil {
 		return nil, err
 	}
 	srv := &Server{
+		logger: logger,
 		config: config,
 		state:  state,
 	}
@@ -84,7 +87,7 @@ func (s *Server) handleMessage(nodeID string, msg *Msg) {
 	}
 
 	if err := handle(); err != nil {
-		// log
+		s.logger.Error("failed to handle message", "node", nodeID, "err", err)
 	}
 }
 

@@ -2,12 +2,11 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
-	"log"
 	"net/url"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/hashicorp/go-hclog"
 )
 
 var upgrader = websocket.Upgrader{} // use default options
@@ -19,7 +18,7 @@ var u = url.URL{
 }
 
 type wsProxy struct {
-	logger *log.Logger
+	logger hclog.Logger
 
 	// connection with the Bor client
 	downstream *websocket.Conn
@@ -37,9 +36,9 @@ type wsProxy struct {
 	msgCh chan []byte
 }
 
-func newWsProxy(logger *log.Logger, downstream *websocket.Conn, proxyAddr string) *wsProxy {
+func newWsProxy(logger hclog.Logger, downstream *websocket.Conn, proxyAddr string) *wsProxy {
 	if logger == nil {
-		logger = log.New(ioutil.Discard, "", 0)
+		logger = hclog.NewNullLogger()
 	}
 	w := &wsProxy{
 		logger:     logger,
@@ -68,7 +67,7 @@ func (p *wsProxy) connect() chan struct{} {
 	for {
 		conn, _, err := websocket.DefaultDialer.Dial(p.proxyAddr, nil)
 		if err != nil {
-			p.logger.Printf("[ERROR]: Failed to dial upstream %s: %v", p.proxyAddr, err)
+			p.logger.Error("failed to dial upstream", "addr", p.proxyAddr, "err", err)
 			time.Sleep(1 * time.Second)
 		} else {
 			p.upstream = conn
@@ -100,7 +99,7 @@ func (p *wsProxy) start() {
 		// close the websocket connection (if open)
 		if p.upstream != nil {
 			if err := p.upstream.Close(); err != nil {
-				p.logger.Printf("[ERROR]: Failed to close upstream: %v", err)
+				p.logger.Error("failed to close upstream", "err", err)
 			}
 		}
 	}()
@@ -113,7 +112,7 @@ CONNECT:
 		select {
 		case msg := <-p.msgCh:
 			if err := p.upstream.WriteMessage(websocket.TextMessage, msg); err != nil {
-				p.logger.Printf("[ERROR]: Failed to write upstream message: %v", err)
+				p.logger.Error("failed to write upstream message", "err", err)
 				goto CONNECT
 			}
 
@@ -124,12 +123,6 @@ CONNECT:
 			return
 		}
 	}
-}
-
-type session struct {
-	info    *NodeInfo
-	closeCh chan struct{}
-	msgCh   chan *Msg
 }
 
 type sessionManager interface {
@@ -149,7 +142,7 @@ var pongMessage = []byte(`{
 }`)
 
 type wsCollector struct {
-	logger    *log.Logger
+	logger    hclog.Logger
 	proxyAddr string
 	password  string
 	manager   sessionManager
@@ -158,10 +151,6 @@ type wsCollector struct {
 func (c *wsCollector) handle(conn *websocket.Conn) {
 	// start the proxy to the upstream repo (if any)
 	var proxy *wsProxy
-	if c.proxyAddr != "" {
-		proxy = newWsProxy(c.logger, conn, "")
-		defer proxy.close()
-	}
 
 	logged := false
 	var nodeID string
@@ -200,21 +189,26 @@ func (c *wsCollector) handle(conn *websocket.Conn) {
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			log.Println("read:", err)
+			c.logger.Error("failed to read msg", "err", err)
 			break
 		}
 
 		msg, err := DecodeMsg(message)
 		if err != nil {
-			log.Printf("failed to decode msg: %v", err)
+			c.logger.Error("failed to decode msg", "err", err)
 			continue
 		}
 
 		if !logged {
 			// auth the node
 			if err := handleAuth(msg); err != nil {
-				log.Printf("failed to handle auth: %v", err)
-				continue
+				c.logger.Error("failed to handle auth", "err", err)
+				break
+			}
+
+			if c.proxyAddr != "" {
+				proxy = newWsProxy(c.logger.Named("proxy_"+nodeID), conn, "")
+				defer proxy.close()
 			}
 			logged = true
 		}
@@ -222,7 +216,7 @@ func (c *wsCollector) handle(conn *websocket.Conn) {
 		if msg.msgType() == "node-ping" {
 			// send a pong
 			if err := conn.WriteMessage(websocket.TextMessage, pongMessage); err != nil {
-				log.Println("write:", err)
+				c.logger.Error("failed to write message", "err", err)
 				break
 			}
 		}
