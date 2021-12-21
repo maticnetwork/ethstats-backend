@@ -1,6 +1,7 @@
-package main
+package ethstats
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/hashicorp/go-hclog"
@@ -16,6 +17,7 @@ type Server struct {
 	logger hclog.Logger
 	config *Config
 	state  *State
+	srv    *http.Server
 }
 
 func NewServer(logger hclog.Logger, config *Config) (*Server, error) {
@@ -40,7 +42,8 @@ func (s *Server) startCollectorServer() {
 		manager: s,
 	}
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		upgrader.CheckOrigin = func(r *http.Request) bool {
 			return true
 		}
@@ -50,7 +53,19 @@ func (s *Server) startCollectorServer() {
 		}
 		collector.handle(conn)
 	})
-	http.ListenAndServe(s.config.CollectorAddr, nil)
+
+	srv := &http.Server{
+		Addr:    s.config.CollectorAddr,
+		Handler: mux,
+	}
+	s.srv = srv
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			s.logger.Error("error shutting down server", "err", err)
+		}
+	}()
+
+	s.logger.Info("Collector ws server started", "addr", s.config.CollectorAddr)
 }
 
 func (s *Server) handleMessage(nodeID string, msg *Msg) {
@@ -82,6 +97,9 @@ func (s *Server) handleMessage(nodeID string, msg *Msg) {
 			if err := s.state.WriteNodeStats(nodeID, &stats); err != nil {
 				return err
 			}
+
+		default:
+			s.logger.Warn("unhandled message", "typ", msg.typ)
 		}
 		return nil
 	}
@@ -93,4 +111,5 @@ func (s *Server) handleMessage(nodeID string, msg *Msg) {
 
 func (s *Server) Close() {
 	s.state.db.Close()
+	s.srv.Shutdown(context.Background())
 }

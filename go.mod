@@ -1,4 +1,4 @@
-module github.com/ferranbt/wsimple
+module github.com/maticnetwork/ethstats-backend
 
 go 1.17
 

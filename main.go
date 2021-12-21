@@ -8,10 +8,11 @@ import (
 	"syscall"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/maticnetwork/ethstats-backend/ethstats"
 )
 
 var (
-	defaultDBEndpoint = "host=localhost port=5432 user=postgres password=postgres dbname=postgres sslmode=disable"
+	defaultDBEndpoint = "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"
 )
 
 func main() {
@@ -22,13 +23,13 @@ func main() {
 	flag.StringVar(&logLevel, "log-level", "Log level", "info")
 	flag.Parse()
 
-	config := &Config{
+	config := &ethstats.Config{
 		Endpoint:      dbEndpoint,
 		CollectorAddr: wsAddr,
 	}
 
 	logger := hclog.New(&hclog.LoggerOptions{Level: hclog.LevelFromString(logLevel)})
-	srv, err := NewServer(logger, config)
+	srv, err := ethstats.NewServer(logger, config)
 	if err != nil {
 		fmt.Printf("[ERROR]: %v", err)
 		os.Exit(0)

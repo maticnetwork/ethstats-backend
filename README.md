@@ -1,12 +1,24 @@
 
 # Ethstats-server
 
-Start websocket server:
+## Development
+
+Run postgresql (user=postgresql, pass=postgresql):
 
 ```
-$ export DBNAME=<Database Name>
-$ export DBPASS=<Database password>
-$ go run .
+$ make postgresql-test
+```
+
+Run postgresql admin panel (email=postgres@gmail.com, pass=postgres, http=localhost:80):
+
+```
+$ postgresql-test-admin
+```
+
+Run ethstats backend:
+
+```
+$ go run main.go
 ```
 
 Start geth client:
