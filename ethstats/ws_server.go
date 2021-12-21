@@ -2,7 +2,6 @@ package ethstats
 
 import (
 	"fmt"
-	"net/url"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -10,12 +9,6 @@ import (
 )
 
 var upgrader = websocket.Upgrader{} // use default options
-
-var u = url.URL{
-	Scheme: "ws",
-	Host:   "localhost:3001",
-	Path:   "/api",
-}
 
 type wsProxy struct {
 	logger hclog.Logger
@@ -85,16 +78,25 @@ func (p *wsProxy) connect() chan struct{} {
 				close(connCloseCh)
 				return
 			}
+
+			msg, err := DecodeMsg(message)
+			if err == nil {
+				// downstream also sends messages that do not conform to the emit messages,
+				// skip it since this was only meant to log outgoing messages
+				p.logger.Debug("message from downstream", "type", msg.typ)
+			}
+
 			if err := p.downstream.WriteMessage(mt, message); err != nil {
 				return
 			}
 		}
 	}()
 
+	p.logger.Debug("proxy connected")
 	return connCloseCh
 }
 
-func (p *wsProxy) start() {
+func (p *wsProxy) start(infoMsg []byte) {
 	defer func() {
 		// close the websocket connection (if open)
 		if p.upstream != nil {
@@ -108,6 +110,12 @@ CONNECT:
 	// try to connect with the frontend node
 	connCloseCh := p.connect()
 
+	// send the infoMsg as initial message always after a connect. Only log if error,
+	// and let the select group to handle any reconnects
+	if err := p.upstream.WriteMessage(websocket.TextMessage, infoMsg); err != nil {
+		p.logger.Error("failed to send info msg", "err", err)
+	}
+
 	for {
 		select {
 		case msg := <-p.msgCh:
@@ -117,6 +125,7 @@ CONNECT:
 			}
 
 		case <-connCloseCh:
+			p.logger.Debug("proxy stopped")
 			goto CONNECT
 
 		case <-p.closeCh:
@@ -144,11 +153,13 @@ var pongMessage = []byte(`{
 type wsCollector struct {
 	logger    hclog.Logger
 	proxyAddr string
-	password  string
+	secret    string
 	manager   sessionManager
 }
 
 func (c *wsCollector) handle(conn *websocket.Conn) {
+	c.logger.Debug("new connection opened", "proxyEnabled", c.proxyAddr != "")
+
 	// start the proxy to the upstream repo (if any)
 	var proxy *wsProxy
 
@@ -170,7 +181,7 @@ func (c *wsCollector) handle(conn *websocket.Conn) {
 		if err := msg.decodeMsg("secret", &secret); err != nil {
 			return err
 		}
-		if c.password != "" && secret != c.password {
+		if c.secret != "" && secret != c.secret {
 			return fmt.Errorf("secret is not correct: %s", secret)
 		}
 
@@ -189,7 +200,7 @@ func (c *wsCollector) handle(conn *websocket.Conn) {
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			c.logger.Error("failed to read msg", "err", err)
+			c.logger.Debug("failed to read msg", "err", err)
 			break
 		}
 
@@ -199,6 +210,8 @@ func (c *wsCollector) handle(conn *websocket.Conn) {
 			continue
 		}
 
+		c.logger.Debug("new message", "node", nodeID, "typ", msg.typ)
+
 		if !logged {
 			// auth the node
 			if err := handleAuth(msg); err != nil {
@@ -207,7 +220,9 @@ func (c *wsCollector) handle(conn *websocket.Conn) {
 			}
 
 			if c.proxyAddr != "" {
-				proxy = newWsProxy(c.logger.Named("proxy_"+nodeID), conn, "")
+				proxy = newWsProxy(c.logger.Named("proxy_"+nodeID), conn, c.proxyAddr)
+				go proxy.start(message)
+
 				defer proxy.close()
 			}
 			logged = true
@@ -221,13 +236,13 @@ func (c *wsCollector) handle(conn *websocket.Conn) {
 			}
 		}
 
-		// deliver the message to the proxy
-		if proxy != nil {
-			proxy.Proxy(message)
-		}
-
 		// deliver the message to the session
-		if msg.typ != "hello" {
+		if msg.typ != "node-ping" {
+			// deliver the message to the proxy. We do not proxy 'node-ping'
+			if proxy != nil {
+				proxy.Proxy(message)
+			}
+
 			c.manager.handleMessage(nodeID, msg)
 		}
 	}

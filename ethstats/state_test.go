@@ -72,18 +72,6 @@ func TestState_WriteBlock(t *testing.T) {
 	assert.Len(t, block2.Txs, 1)
 }
 
-func TestState_Reorg(t *testing.T) {
-	db, closeFn := setupPostgresql(t)
-	defer closeFn()
-
-	s, err := NewStateWithDB(db)
-	assert.NoError(t, err)
-
-	evnt := &ReorgEvent{}
-	s.WriteReorgEvent("", evnt)
-	fmt.Println(db)
-}
-
 func TestState_NodeInfo(t *testing.T) {
 	db, closeFn := setupPostgresql(t)
 	defer closeFn()
@@ -127,4 +115,32 @@ func TestState_NodeStats(t *testing.T) {
 	stats2, err := s.GetNodeStats("b")
 	assert.NoError(t, err)
 	assert.Equal(t, stats, stats2)
+}
+
+func TestState_Reorg(t *testing.T) {
+	db, closeFn := setupPostgresql(t)
+	defer closeFn()
+
+	s, err := NewStateWithDB(db)
+	assert.NoError(t, err)
+
+	info := &NodeInfo{Name: "b"}
+	assert.NoError(t, s.WriteNodeInfo(info))
+
+	evnt := &ReorgEvent{
+		Added: []BlockStub{
+			{Hash: "0x1", Number: 1},
+		},
+		Removed: []BlockStub{
+			{Hash: "0x1", Number: 1},
+		},
+		Type: "fork",
+	}
+
+	reorgID, err := s.WriteReorgEvent("b", evnt)
+	assert.NoError(t, err)
+
+	evnt2, err := s.GetReorgEvent(reorgID)
+	assert.NoError(t, err)
+	assert.Equal(t, evnt, evnt2)
 }

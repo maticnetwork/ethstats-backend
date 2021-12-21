@@ -11,6 +11,7 @@ import (
 type Config struct {
 	CollectorAddr string
 	Endpoint      string
+	FrontendAddr  string
 }
 
 type Server struct {
@@ -39,7 +40,9 @@ func NewServer(logger hclog.Logger, config *Config) (*Server, error) {
 
 func (s *Server) startCollectorServer() {
 	collector := &wsCollector{
-		manager: s,
+		logger:    s.logger.Named("collector"),
+		manager:   s,
+		proxyAddr: s.config.FrontendAddr,
 	}
 
 	mux := http.NewServeMux()
@@ -65,27 +68,30 @@ func (s *Server) startCollectorServer() {
 		}
 	}()
 
-	s.logger.Info("Collector ws server started", "addr", s.config.CollectorAddr)
+	s.logger.Info("Collector ws server started", "addr", s.config.CollectorAddr, "secret", collector.secret)
+	if s.config.FrontendAddr != "" {
+		s.logger.Info("Frontend downstream enabled", "addr", s.config.FrontendAddr)
+	}
 }
 
 func (s *Server) handleMessage(nodeID string, msg *Msg) {
 	handle := func() error {
 		switch msg.typ {
 		case "hello":
-			var info *NodeInfo
-			if err := msg.decodeMsg("info", info); err != nil {
+			var info NodeInfo
+			if err := msg.decodeMsg("info", &info); err != nil {
 				return err
 			}
-			if err := s.state.WriteNodeInfo(info); err != nil {
+			if err := s.state.WriteNodeInfo(&info); err != nil {
 				return err
 			}
 
 		case "block":
-			var block *Block
-			if err := msg.decodeMsg("block", block); err != nil {
+			var block Block
+			if err := msg.decodeMsg("block", &block); err != nil {
 				return err
 			}
-			if err := s.state.WriteBlock(block); err != nil {
+			if err := s.state.WriteBlock(&block); err != nil {
 				return err
 			}
 
@@ -97,6 +103,15 @@ func (s *Server) handleMessage(nodeID string, msg *Msg) {
 			if err := s.state.WriteNodeStats(nodeID, &stats); err != nil {
 				return err
 			}
+
+		case "pending":
+			// TODO?
+
+		case "latency":
+			// we do not track latency
+
+		case "history":
+			// we do not use history
 
 		default:
 			s.logger.Warn("unhandled message", "typ", msg.typ)

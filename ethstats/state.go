@@ -213,16 +213,46 @@ func (s *State) WriteNodeStats(nodeId string, stats *NodeStats) error {
 	return nil
 }
 
-func (s *State) WriteReorgEvent(nodeID string, evnt *ReorgEvent) error {
+func (s *State) GetReorgEvent(reorgID string) (*ReorgEvent, error) {
+	evnt := ReorgEvent{
+		Added:   []BlockStub{},
+		Removed: []BlockStub{},
+	}
+	if err := s.db.Get(&evnt, "SELECT typ FROM reorgevents WHERE reorg_id=$1", reorgID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	stubs := []struct {
+		BlockStub
+		Type string `db:"typ"`
+	}{}
+	if err := s.db.Select(&stubs, "SELECT block_number, block_hash, parent_hash, typ FROM reorgentry WHERE reorg_id=$1", reorgID); err != nil {
+		return nil, err
+	}
+
+	for _, s := range stubs {
+		if s.Type == "add" {
+			evnt.Added = append(evnt.Added, s.BlockStub)
+		} else {
+			evnt.Removed = append(evnt.Removed, s.BlockStub)
+		}
+	}
+	return &evnt, nil
+}
+
+func (s *State) WriteReorgEvent(nodeID string, evnt *ReorgEvent) (string, error) {
 	// we use an ulid to identify each reorg event
 	ulid, err := newUlid()
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	tx, err := s.db.Begin()
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer tx.Rollback()
 
@@ -235,26 +265,26 @@ func (s *State) WriteReorgEvent(nodeID string, evnt *ReorgEvent) error {
 	}
 
 	// write the reorg event
-	if _, err := tx.Exec(`INSERT INTO reorgevents("node_id", "reorg_id") values ($1, $2)`, nodeID, ulid); err != nil {
-		return err
+	if _, err := tx.Exec(`INSERT INTO reorgevents("node_id", "reorg_id", "typ") values ($1, $2, $3)`, nodeID, ulid, evnt.Type); err != nil {
+		return "", err
 	}
 
 	// write the reorg elems
 	for _, add := range evnt.Added {
 		if err := writeElem(add, "add"); err != nil {
-			return err
+			return "", err
 		}
 	}
 	for _, del := range evnt.Removed {
 		if err := writeElem(del, "del"); err != nil {
-			return err
+			return "", err
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return err
+		return "", err
 	}
-	return nil
+	return ulid, nil
 }
 
 func newUlid() (string, error) {

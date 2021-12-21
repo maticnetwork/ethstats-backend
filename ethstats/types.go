@@ -60,12 +60,13 @@ type NodeStats struct {
 type ReorgEvent struct {
 	Added   []BlockStub `json:"added"`
 	Removed []BlockStub `json:"removed"`
+	Type    string      `json:"type" db:"typ"`
 }
 
 type BlockStub struct {
 	ParentHash string `json:"parent_hash" db:"parent_hash"`
-	Hash       string `json:"hash" db:"hash"`
-	Number     int    `json:"number" db:"number"`
+	Hash       string `json:"hash" db:"block_hash"`
+	Number     int    `json:"number" db:"block_number"`
 }
 
 type argBig big.Int

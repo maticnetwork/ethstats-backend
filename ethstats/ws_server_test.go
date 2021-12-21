@@ -25,23 +25,25 @@ func getNextPort() int {
 type mockWsServer struct {
 	t *testing.T
 
-	addr string
-	srv  *http.Server
+	addr     string
+	srv      *http.Server
+	cancelFn context.CancelFunc
 }
 
 func (m *mockWsServer) close() {
+	m.cancelFn()
+
 	if err := m.srv.Shutdown(context.Background()); err != nil {
 		m.t.Fatal(err)
 	}
 }
 
 type wsChHandler struct {
-	sendCh  chan []byte
-	recvCh  chan []byte
-	closeCh chan struct{}
+	sendCh chan []byte
+	recvCh chan []byte
 }
 
-func (m *wsChHandler) handle(c *websocket.Conn) {
+func (m *wsChHandler) handle(ctx context.Context, c *websocket.Conn) {
 	go func() {
 		for {
 			select {
@@ -49,8 +51,7 @@ func (m *wsChHandler) handle(c *websocket.Conn) {
 				if err := c.WriteMessage(websocket.TextMessage, msg); err != nil {
 					panic(err)
 				}
-			case <-m.closeCh:
-				// Gorilla websocket does not seem to close connection after http server shutdown
+			case <-ctx.Done():
 				c.Close()
 				return
 			}
@@ -67,13 +68,16 @@ func (m *wsChHandler) handle(c *websocket.Conn) {
 	}
 }
 
-func newMockWsServer(t *testing.T, addr string, handler func(conn *websocket.Conn)) *mockWsServer {
+func newMockWsServer(t *testing.T, addr string, handler func(ctx context.Context, conn *websocket.Conn)) *mockWsServer {
 	if addr == "" {
 		addr = "0.0.0.0:" + strconv.Itoa(getNextPort())
 	}
+
+	ctx, cancelFn := context.WithCancel(context.Background())
 	m := &mockWsServer{
-		t:    t,
-		addr: "ws://" + addr,
+		t:        t,
+		addr:     "ws://" + addr,
+		cancelFn: cancelFn,
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -84,7 +88,7 @@ func newMockWsServer(t *testing.T, addr string, handler func(conn *websocket.Con
 		if err != nil {
 			return
 		}
-		handler(c)
+		handler(ctx, c)
 	})
 
 	srv := &http.Server{
@@ -157,12 +161,13 @@ func newMockWsClient(t *testing.T, addr string) *mockWsClient {
 
 func TestWsProxy(t *testing.T) {
 	var (
-		msg1 = []byte{0x1, 0x2}
-		msg2 = []byte{0x3, 0x4}
+		msg1    = []byte{0x1, 0x2}
+		msg2    = []byte{0x3, 0x4}
+		infoMsg = []byte{0x5, 0x6}
 	)
 
 	echoCh := &wsChHandler{
-		recvCh: make(chan []byte),
+		recvCh: make(chan []byte, 10),
 	}
 	recv := func(timeout time.Duration) []byte {
 		select {
@@ -177,11 +182,11 @@ func TestWsProxy(t *testing.T) {
 	upstream := newMockWsServer(t, "", echoCh.handle)
 
 	doneCh := make(chan struct{})
-	middleman := newMockWsServer(t, "", func(conn *websocket.Conn) {
+	middleman := newMockWsServer(t, "", func(ctx context.Context, conn *websocket.Conn) {
 		proxy := newWsProxy(nil, conn, upstream.addr)
 		defer proxy.close()
 
-		go proxy.start()
+		go proxy.start(infoMsg)
 		close(doneCh)
 
 		for {
@@ -204,6 +209,7 @@ func TestWsProxy(t *testing.T) {
 	downstream.Write(msg1)
 
 	// wait for the first downstream message
+	assert.Equal(t, recv(1*time.Second), infoMsg)
 	assert.Equal(t, recv(1*time.Second), msg1)
 
 	// restart upstream connection
@@ -213,6 +219,7 @@ func TestWsProxy(t *testing.T) {
 	downstream.Write(msg2)
 
 	// wait for the second downstream message
+	assert.Equal(t, recv(1*time.Second), infoMsg)
 	assert.Equal(t, recv(1*time.Second), msg2)
 }
 
@@ -236,7 +243,9 @@ func TestWsCollector_Session(t *testing.T) {
 		logger:  hclog.NewNullLogger(),
 	}
 
-	srv := newMockWsServer(t, "", ws.handle)
+	srv := newMockWsServer(t, "", func(ctx context.Context, conn *websocket.Conn) {
+		ws.handle(conn)
+	})
 
 	clt := newMockWsClient(t, srv.addr)
 	clt.emit("hello", `{
@@ -258,7 +267,9 @@ func TestWsCollector_PingPong(t *testing.T) {
 		manager: sm,
 		logger:  hclog.NewNullLogger(),
 	}
-	srv := newMockWsServer(t, "", ws.handle)
+	srv := newMockWsServer(t, "", func(ctx context.Context, conn *websocket.Conn) {
+		ws.handle(conn)
+	})
 
 	clt := newMockWsClient(t, srv.addr)
 	clt.emit("hello", `{
