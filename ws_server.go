@@ -133,7 +133,7 @@ type session struct {
 }
 
 type sessionManager interface {
-	handleSession(s *session)
+	handleMessage(nodeID string, msg *Msg)
 }
 
 var loggedMessage = []byte(`{
@@ -164,13 +164,10 @@ func (c *wsCollector) handle(conn *websocket.Conn) {
 	}
 
 	logged := false
-	var ss *session
+	var nodeID string
 
 	defer func() {
 		conn.Close()
-		if ss != nil {
-			close(ss.closeCh)
-		}
 	}()
 
 	handleAuth := func(msg *Msg) error {
@@ -196,12 +193,7 @@ func (c *wsCollector) handle(conn *websocket.Conn) {
 		if err := conn.WriteMessage(websocket.TextMessage, loggedMessage); err != nil {
 			return err
 		}
-		ss = &session{
-			info:    &info,
-			closeCh: make(chan struct{}),
-			msgCh:   make(chan *Msg, 100),
-		}
-		c.manager.handleSession(ss)
+		nodeID = info.Name
 		return nil
 	}
 
@@ -241,11 +233,8 @@ func (c *wsCollector) handle(conn *websocket.Conn) {
 		}
 
 		// deliver the message to the session
-		if msg.typ != "hello" && msg.typ != "node-ping" {
-			select {
-			case ss.msgCh <- msg:
-			default:
-			}
+		if msg.typ != "hello" {
+			c.manager.handleMessage(nodeID, msg)
 		}
 	}
 }

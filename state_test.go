@@ -1,15 +1,17 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
+	"math/big"
 	"testing"
+	"time"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/ory/dockertest"
 	"github.com/stretchr/testify/assert"
 )
 
-func setupPostgresql(t *testing.T) (*sql.DB, func()) {
+func setupPostgresql(t *testing.T) (*sqlx.DB, func()) {
 	pool, err := dockertest.NewPool("")
 	if err != nil {
 		t.Fatalf("Could not connect to docker: %s", err)
@@ -23,9 +25,9 @@ func setupPostgresql(t *testing.T) (*sql.DB, func()) {
 	endpoint := fmt.Sprintf("postgres://postgres@localhost:%s/postgres?sslmode=disable", resource.GetPort("5432/tcp"))
 
 	// wait for the db to be running
-	var db *sql.DB
+	var db *sqlx.DB
 	if err := pool.Retry(func() error {
-		db, err = sql.Open("postgres", endpoint)
+		db, err = sqlx.Open("postgres", endpoint)
 		if err != nil {
 			return err
 		}
@@ -42,35 +44,87 @@ func setupPostgresql(t *testing.T) (*sql.DB, func()) {
 	return db, cleanup
 }
 
-func TestState_Blocks(t *testing.T) {
+var (
+	one = big.NewInt(1)
+)
 
+func TestState_WriteBlock(t *testing.T) {
 	db, closeFn := setupPostgresql(t)
 	defer closeFn()
 
 	s, err := NewStateWithDB(db)
 	assert.NoError(t, err)
 
-	fmt.Println(s)
+	hash := "0x1234"
 
-	txs := [1]TxStats{{Hash: "0x0"}}
-	uncles := []Block{}
-	testBlock := &Block{
-		Number:     99999,
-		Hash:       "0x024915c6bfecb55a46e3a4061b606b39db86aa511223b5f92ec9bdf54e568e88",
-		ParentHash: "0x23e64005d9f365b7d090b577889f3a92be4474c88858a39c79a79db91a9e21b3",
-		Timestamp:  2637578243,
-		Miner:      "0x9fb29aac15b9a4b7f17c3385939b007540f4d791",
-		GasUsed:    0,
-		GasLimit:   0,
-		Diff:       "1",
-		TotalDiff:  "99999",
-		TxHash:     "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b423",
-		Txs:        txs[:],
-		Uncles:     uncles,
-		Root:       "0x86a0906f755bfda86527e49a598fc6592235ee4bcf8592c49b8e5c59e46c0655",
+	block := &Block{
+		Number:    99999,
+		Hash:      hash,
+		Timestamp: time.Now().Nanosecond(),
+		Txs:       []TxStats{{Hash: "0x0"}},
+		Diff:      argBigPtr(one),
 	}
 
-	if err := s.WriteBlock(testBlock); err != nil {
-		t.Fatal(err)
+	assert.NoError(t, s.WriteBlock(block))
+
+	block2, err := s.GetBlock(hash)
+	assert.NoError(t, err)
+	assert.Len(t, block2.Txs, 1)
+}
+
+func TestState_Reorg(t *testing.T) {
+	db, closeFn := setupPostgresql(t)
+	defer closeFn()
+
+	s, err := NewStateWithDB(db)
+	assert.NoError(t, err)
+
+	evnt := &ReorgEvent{}
+	s.WriteReorgEvent("", evnt)
+	fmt.Println(db)
+}
+
+func TestState_NodeInfo(t *testing.T) {
+	db, closeFn := setupPostgresql(t)
+	defer closeFn()
+
+	s, err := NewStateWithDB(db)
+	assert.NoError(t, err)
+
+	info := &NodeInfo{
+		Name: "a",
+		Node: "b",
 	}
+	assert.NoError(t, s.WriteNodeInfo(info))
+
+	info2, err := s.GetNodeInfo("a")
+	assert.NoError(t, err)
+	assert.Equal(t, info, info2)
+
+	// get stats should be available but empty
+	stats, err := s.GetNodeStats("a")
+	assert.NoError(t, err)
+	assert.NotNil(t, stats)
+}
+
+func TestState_NodeStats(t *testing.T) {
+	db, closeFn := setupPostgresql(t)
+	defer closeFn()
+
+	s, err := NewStateWithDB(db)
+	assert.NoError(t, err)
+
+	info := &NodeInfo{
+		Name: "b",
+	}
+	assert.NoError(t, s.WriteNodeInfo(info))
+
+	stats := &NodeStats{
+		Peers: 100,
+	}
+	assert.NoError(t, s.WriteNodeStats("b", stats))
+
+	stats2, err := s.GetNodeStats("b")
+	assert.NoError(t, err)
+	assert.Equal(t, stats, stats2)
 }

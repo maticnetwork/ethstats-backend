@@ -218,15 +218,15 @@ func TestWsProxy(t *testing.T) {
 }
 
 type mockSessionManager struct {
-	ch chan *session
+	ch chan *Msg
 }
 
 func newMockSessionManager() *mockSessionManager {
-	return &mockSessionManager{ch: make(chan *session, 10)}
+	return &mockSessionManager{ch: make(chan *Msg, 10)}
 }
 
-func (m *mockSessionManager) handleSession(s *session) {
-	m.ch <- s
+func (m *mockSessionManager) handleMessage(nodeID string, msg *Msg) {
+	m.ch <- msg
 }
 
 func TestWsCollector_Session(t *testing.T) {
@@ -245,13 +245,11 @@ func TestWsCollector_Session(t *testing.T) {
 		"info": {}
 	}`)
 
-	session := <-sm.ch
-
 	clt.emit("msg1", `{}`)
 	clt.emit("msg2", `{}`)
 
-	assert.Equal(t, (<-session.msgCh).typ, "msg1")
-	assert.Equal(t, (<-session.msgCh).typ, "msg2")
+	assert.Equal(t, (<-sm.ch).typ, "msg1")
+	assert.Equal(t, (<-sm.ch).typ, "msg2")
 }
 
 func TestWsCollector_PingPong(t *testing.T) {
