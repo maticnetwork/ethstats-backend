@@ -261,6 +261,48 @@ func TestWsCollector_Session(t *testing.T) {
 	assert.Equal(t, (<-sm.ch).typ, "msg2")
 }
 
+func TestWsCollector_ProxySecret(t *testing.T) {
+	sm := newMockSessionManager()
+
+	for _, secret := range []string{"", "abcd"} {
+		echoCh := &wsChHandler{
+			recvCh: make(chan []byte, 10),
+		}
+		upstream := newMockWsServer(t, "", echoCh.handle)
+
+		ws := &wsCollector{
+			manager:     sm,
+			logger:      hclog.NewNullLogger(),
+			proxySecret: secret,
+			proxyAddr:   upstream.addr,
+		}
+
+		srv := newMockWsServer(t, "", func(ctx context.Context, conn *websocket.Conn) {
+			ws.handle(conn)
+		})
+
+		clt := newMockWsClient(t, srv.addr)
+		clt.emit("hello", `{
+			"secret": "secret",
+			"info": {}
+		}`)
+
+		raw := <-echoCh.recvCh
+		msg, err := DecodeMsg(raw)
+		assert.NoError(t, err)
+
+		var foundSecret string
+		assert.NoError(t, msg.decodeMsg("secret", &foundSecret))
+
+		if secret == "" {
+			// no secret specified, use the one from downstream
+			assert.Equal(t, foundSecret, "secret")
+		} else {
+			assert.Equal(t, foundSecret, secret)
+		}
+	}
+}
+
 func TestWsCollector_PingPong(t *testing.T) {
 	sm := newMockSessionManager()
 

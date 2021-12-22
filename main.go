@@ -16,19 +16,16 @@ var (
 )
 
 func main() {
-	var wsAddr, dbEndpoint, logLevel, frontendAddr string
+	config := &ethstats.Config{}
+	var logLevel string
 
-	flag.StringVar(&dbEndpoint, "db-endpoint", defaultDBEndpoint, "")
-	flag.StringVar(&wsAddr, "ws-addr", "localhost:8000", "ws service address for collector")
+	flag.StringVar(&config.Endpoint, "db-endpoint", defaultDBEndpoint, "")
+	flag.StringVar(&config.CollectorAddr, "collector.addr", "localhost:8000", "ws service address for collector")
+	flag.StringVar(&config.CollectorSecret, "collector.secret", "", "")
 	flag.StringVar(&logLevel, "log-level", "Log level", "info")
-	flag.StringVar(&frontendAddr, "frontend-addr", "", "")
+	flag.StringVar(&config.FrontendAddr, "frontend.addr", "", "")
+	flag.StringVar(&config.FrontendSecret, "frontend.secret", "", "")
 	flag.Parse()
-
-	config := &ethstats.Config{
-		Endpoint:      dbEndpoint,
-		CollectorAddr: wsAddr,
-		FrontendAddr:  frontendAddr,
-	}
 
 	logger := hclog.New(&hclog.LoggerOptions{Level: hclog.LevelFromString(logLevel)})
 	srv, err := ethstats.NewServer(logger, config)
