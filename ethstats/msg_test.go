@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMsg(t *testing.T) {
@@ -11,7 +13,8 @@ func TestMsg(t *testing.T) {
 		"emit": [
 			"msgtype",
 			{
-				"block": {"number": 1}
+				"block": {"number": 1},
+				"secret": "b"
 			}
 		]
 	}`
@@ -24,7 +27,8 @@ func TestMsg(t *testing.T) {
 	expect := &Msg{
 		typ: "msgtype",
 		msg: map[string]json.RawMessage{
-			"block": []byte(`{"number": 1}`),
+			"block":  []byte(`{"number": 1}`),
+			"secret": []byte(`"b"`),
 		},
 	}
 	if !reflect.DeepEqual(msg, expect) {
@@ -40,4 +44,8 @@ func TestMsg(t *testing.T) {
 	if msg2.Number != 1 {
 		t.Fatal("expected 1")
 	}
+
+	data2, err := msg.Marshal()
+	assert.NoError(t, err)
+	assert.JSONEq(t, string(data), string(data2))
 }

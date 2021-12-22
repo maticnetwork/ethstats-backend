@@ -9,9 +9,11 @@ import (
 )
 
 type Config struct {
-	CollectorAddr string
-	Endpoint      string
-	FrontendAddr  string
+	CollectorAddr   string
+	CollectorSecret string
+	Endpoint        string
+	FrontendAddr    string
+	FrontendSecret  string
 }
 
 type Server struct {
@@ -40,9 +42,11 @@ func NewServer(logger hclog.Logger, config *Config) (*Server, error) {
 
 func (s *Server) startCollectorServer() {
 	collector := &wsCollector{
-		logger:    s.logger.Named("collector"),
-		manager:   s,
-		proxyAddr: s.config.FrontendAddr,
+		logger:      s.logger.Named("collector"),
+		manager:     s,
+		proxyAddr:   s.config.FrontendAddr,
+		proxySecret: s.config.FrontendSecret,
+		secret:      s.config.CollectorSecret,
 	}
 
 	mux := http.NewServeMux()
@@ -70,7 +74,7 @@ func (s *Server) startCollectorServer() {
 
 	s.logger.Info("Collector ws server started", "addr", s.config.CollectorAddr, "secret", collector.secret)
 	if s.config.FrontendAddr != "" {
-		s.logger.Info("Frontend downstream enabled", "addr", s.config.FrontendAddr)
+		s.logger.Info("Frontend downstream enabled", "addr", s.config.FrontendAddr, "secret", s.config.FrontendSecret)
 	}
 }
 

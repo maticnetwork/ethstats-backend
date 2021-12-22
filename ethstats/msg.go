@@ -10,6 +10,34 @@ type Msg struct {
 	msg map[string]json.RawMessage
 }
 
+func (m *Msg) Set(k string, v json.RawMessage) {
+	if m.msg == nil {
+		m.msg = map[string]json.RawMessage{}
+	}
+	m.msg[k] = v
+}
+
+func (m *Msg) Copy() *Msg {
+	mm := new(Msg)
+	*mm = *m
+
+	mm.msg = map[string]json.RawMessage{}
+	for k, v := range m.msg {
+		mm.msg[k] = append([]byte{}, v...)
+	}
+	return mm
+}
+
+func (m *Msg) Marshal() ([]byte, error) {
+	val := map[string]interface{}{
+		"emit": []interface{}{
+			m.typ,
+			m.msg,
+		},
+	}
+	return json.Marshal(val)
+}
+
 func DecodeMsg(message []byte) (*Msg, error) {
 	var msg struct {
 		Emit []json.RawMessage

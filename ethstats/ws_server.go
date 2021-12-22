@@ -151,10 +151,11 @@ var pongMessage = []byte(`{
 }`)
 
 type wsCollector struct {
-	logger    hclog.Logger
-	proxyAddr string
-	secret    string
-	manager   sessionManager
+	logger      hclog.Logger
+	proxyAddr   string
+	proxySecret string
+	secret      string
+	manager     sessionManager
 }
 
 func (c *wsCollector) handle(conn *websocket.Conn) {
@@ -221,8 +222,16 @@ func (c *wsCollector) handle(conn *websocket.Conn) {
 
 			if c.proxyAddr != "" {
 				proxy = newWsProxy(c.logger.Named("proxy_"+nodeID), conn, c.proxyAddr)
-				go proxy.start(message)
 
+				// use the secret from the proxy
+				proxyMsg := message
+				if c.proxySecret != "" {
+					proxyAuthMsg := msg.Copy()
+					proxyAuthMsg.Set("secret", []byte(`"`+c.proxySecret+`"`))
+					proxyMsg, _ = proxyAuthMsg.Marshal()
+				}
+
+				go proxy.start(proxyMsg)
 				defer proxy.close()
 			}
 			logged = true
@@ -238,8 +247,10 @@ func (c *wsCollector) handle(conn *websocket.Conn) {
 
 		// deliver the message to the session
 		if msg.typ != "node-ping" {
-			// deliver the message to the proxy. We do not proxy 'node-ping'
-			if proxy != nil {
+			// deliver the message to the proxy. We do not send neither:
+			// - node-ping: since we do not want to proxy back pong.
+			// - hello: since we have already sent hello ourselves to the proxy
+			if proxy != nil && msg.typ != "hello" {
 				proxy.Proxy(message)
 			}
 
