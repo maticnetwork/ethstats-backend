@@ -1,4 +1,4 @@
-package main
+package ethstats
 
 import (
 	"encoding/json"
