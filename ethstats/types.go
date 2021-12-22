@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"reflect"
 	"strings"
+	"time"
 )
 
 type TxStats struct {
@@ -34,16 +35,17 @@ type Block struct {
 // nodeInfo is the collection of meta information about a node that is displayed
 // on the monitoring page.
 type NodeInfo struct {
-	Name     string `json:"name" db:"node_id"`
-	Node     string `json:"node" db:"node"`
-	Port     int    `json:"port" db:"port"`
-	Network  string `json:"net" db:"network"`
-	Protocol string `json:"protocol" db:"protocol"`
-	API      string `json:"api" db:"api"`
-	Os       string `json:"os" db:"os"`
-	OsVer    string `json:"os_v" db:"osver"`
-	Client   string `json:"client" db:"client"`
-	History  bool   `json:"canUpdateHistory" db:"history"`
+	Name      string    `json:"name" db:"node_id"`
+	Node      string    `json:"node" db:"node"`
+	Port      int       `json:"port" db:"port"`
+	Network   string    `json:"net" db:"network"`
+	Protocol  string    `json:"protocol" db:"protocol"`
+	API       string    `json:"api" db:"api"`
+	Os        string    `json:"os" db:"os"`
+	OsVer     string    `json:"os_v" db:"osver"`
+	Client    string    `json:"client" db:"client"`
+	History   bool      `json:"canUpdateHistory" db:"history"`
+	CreatedAt time.Time `db:"created_at"`
 }
 
 // nodeStats is the information to report about the local node.
@@ -57,7 +59,7 @@ type NodeStats struct {
 	Uptime   int  `json:"uptime" db:"uptime"`
 }
 
-type ReorgEvent struct {
+type HeadEvent struct {
 	Added   []BlockStub `json:"added"`
 	Removed []BlockStub `json:"removed"`
 	Type    string      `json:"type" db:"typ"`

@@ -10,5 +10,6 @@ CREATE TABLE IF NOT EXISTS nodeinfo
     os TEXT,
     osver TEXT,
     client TEXT,
-    history boolean
+    history boolean,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

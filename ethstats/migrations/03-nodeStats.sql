@@ -8,5 +8,6 @@ CREATE TABLE IF NOT EXISTS nodestats
     hashrate integer DEFAULT 0,
     peers integer DEFAULT 0,
     gasprice integer DEFAULT 0,
-    uptime integer DEFAULT 0
+    uptime integer DEFAULT 0,
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS blocks
     transactions_count integer NOT NULL,
     uncles_count integer NOT NULL,
     state_root TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     CONSTRAINT blocks_pkey PRIMARY KEY (hash)
 );
 

@@ -87,6 +87,8 @@ func TestState_NodeInfo(t *testing.T) {
 
 	info2, err := s.GetNodeInfo("a")
 	assert.NoError(t, err)
+
+	info2.CreatedAt = time.Time{}
 	assert.Equal(t, info, info2)
 
 	// get stats should be available but empty
@@ -117,7 +119,7 @@ func TestState_NodeStats(t *testing.T) {
 	assert.Equal(t, stats, stats2)
 }
 
-func TestState_Reorg(t *testing.T) {
+func TestState_HeadEvent(t *testing.T) {
 	db, closeFn := setupPostgresql(t)
 	defer closeFn()
 
@@ -127,7 +129,7 @@ func TestState_Reorg(t *testing.T) {
 	info := &NodeInfo{Name: "b"}
 	assert.NoError(t, s.WriteNodeInfo(info))
 
-	evnt := &ReorgEvent{
+	evnt := &HeadEvent{
 		Added: []BlockStub{
 			{Hash: "0x1", Number: 1},
 		},
@@ -137,10 +139,10 @@ func TestState_Reorg(t *testing.T) {
 		Type: "fork",
 	}
 
-	reorgID, err := s.WriteReorgEvent("b", evnt)
+	eventID, err := s.WriteHeadEvent("b", evnt)
 	assert.NoError(t, err)
 
-	evnt2, err := s.GetReorgEvent(reorgID)
+	evnt2, err := s.GetHeadEvent(eventID)
 	assert.NoError(t, err)
 	assert.Equal(t, evnt, evnt2)
 }

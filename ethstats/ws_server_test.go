@@ -256,6 +256,7 @@ func TestWsCollector_Session(t *testing.T) {
 	clt.emit("msg1", `{}`)
 	clt.emit("msg2", `{}`)
 
+	assert.Equal(t, (<-sm.ch).typ, "hello")
 	assert.Equal(t, (<-sm.ch).typ, "msg1")
 	assert.Equal(t, (<-sm.ch).typ, "msg2")
 }

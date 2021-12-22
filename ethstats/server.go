@@ -104,6 +104,15 @@ func (s *Server) handleMessage(nodeID string, msg *Msg) {
 				return err
 			}
 
+		case "headEvent":
+			var event HeadEvent
+			if err := msg.decodeMsg("event", &event); err != nil {
+				return err
+			}
+			if _, err := s.state.WriteHeadEvent(nodeID, &event); err != nil {
+				return err
+			}
+
 		case "pending":
 			// TODO?
 

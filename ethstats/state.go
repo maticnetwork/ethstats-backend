@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"math/big"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/oklog/ulid"
@@ -204,21 +205,21 @@ func (s *State) GetNodeStats(nodeID string) (*NodeStats, error) {
 }
 
 func (s *State) WriteNodeStats(nodeId string, stats *NodeStats) error {
-	query := `UPDATE nodestats SET active = $1, syncing = $2, mining = $3, hashrate = $4, peers = $5, gasprice = $6, uptime = $7
-	WHERE node_id=$8;`
+	query := `UPDATE nodestats SET active = $1, syncing = $2, mining = $3, hashrate = $4, peers = $5, gasprice = $6, uptime = $7, updated_at = $8
+	WHERE node_id=$9;`
 
-	if _, err := s.db.Exec(query, stats.Active, stats.Syncing, stats.Mining, stats.Hashrate, stats.Peers, stats.GasPrice, stats.Uptime, nodeId); err != nil {
+	if _, err := s.db.Exec(query, stats.Active, stats.Syncing, stats.Mining, stats.Hashrate, stats.Peers, stats.GasPrice, stats.Uptime, time.Now(), nodeId); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *State) GetReorgEvent(reorgID string) (*ReorgEvent, error) {
-	evnt := ReorgEvent{
+func (s *State) GetHeadEvent(eventID string) (*HeadEvent, error) {
+	evnt := HeadEvent{
 		Added:   []BlockStub{},
 		Removed: []BlockStub{},
 	}
-	if err := s.db.Get(&evnt, "SELECT typ FROM reorgevents WHERE reorg_id=$1", reorgID); err != nil {
+	if err := s.db.Get(&evnt, "SELECT typ FROM headevents WHERE event_id=$1", eventID); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
@@ -229,7 +230,7 @@ func (s *State) GetReorgEvent(reorgID string) (*ReorgEvent, error) {
 		BlockStub
 		Type string `db:"typ"`
 	}{}
-	if err := s.db.Select(&stubs, "SELECT block_number, block_hash, parent_hash, typ FROM reorgentry WHERE reorg_id=$1", reorgID); err != nil {
+	if err := s.db.Select(&stubs, "SELECT block_number, block_hash, parent_hash, typ FROM headentry WHERE event_id=$1", eventID); err != nil {
 		return nil, err
 	}
 
@@ -243,8 +244,8 @@ func (s *State) GetReorgEvent(reorgID string) (*ReorgEvent, error) {
 	return &evnt, nil
 }
 
-func (s *State) WriteReorgEvent(nodeID string, evnt *ReorgEvent) (string, error) {
-	// we use an ulid to identify each reorg event
+func (s *State) WriteHeadEvent(nodeID string, evnt *HeadEvent) (string, error) {
+	// we use an ulid to identify each head event
 	ulid, err := newUlid()
 	if err != nil {
 		return "", err
@@ -257,19 +258,19 @@ func (s *State) WriteReorgEvent(nodeID string, evnt *ReorgEvent) (string, error)
 	defer tx.Rollback()
 
 	writeElem := func(stub BlockStub, typ string) error {
-		query := `INSERT INTO reorgentry("reorg_id", "block_number", "block_hash", "parent_hash", "typ") VALUES ($1, $2, $3, $4, $5)`
+		query := `INSERT INTO headentry("event_id", "block_number", "block_hash", "parent_hash", "typ") VALUES ($1, $2, $3, $4, $5)`
 		if _, err := tx.Exec(query, ulid, stub.Number, stub.Hash, stub.ParentHash, typ); err != nil {
 			return err
 		}
 		return nil
 	}
 
-	// write the reorg event
-	if _, err := tx.Exec(`INSERT INTO reorgevents("node_id", "reorg_id", "typ") values ($1, $2, $3)`, nodeID, ulid, evnt.Type); err != nil {
+	// write the head event
+	if _, err := tx.Exec(`INSERT INTO headevents("node_id", "event_id", "typ") values ($1, $2, $3)`, nodeID, ulid, evnt.Type); err != nil {
 		return "", err
 	}
 
-	// write the reorg elems
+	// write the head elems
 	for _, add := range evnt.Added {
 		if err := writeElem(add, "add"); err != nil {
 			return "", err
