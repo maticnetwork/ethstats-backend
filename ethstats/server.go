@@ -61,6 +61,9 @@ func (s *Server) startCollectorServer() {
 		collector.handle(conn)
 	})
 
+	mux.HandleFunc("/api/getBlock/", s.getBlock)
+	mux.HandleFunc("/api/getLatestBlock", s.getLatestBlock)
+
 	srv := &http.Server{
 		Addr:    s.config.CollectorAddr,
 		Handler: mux,

@@ -153,6 +153,44 @@ func (s *State) GetNodeInfo(nodeID string) (*NodeInfo, error) {
 	return &info, nil
 }
 
+func (s *State) GetBlockByNumber(blockNumber int) (*BlockDB, error) {
+	rawBlock := BlockDB{}
+	insertDynStmt := `SELECT * FROM public.blocks where number = $1`
+	if err := s.db.Get(&rawBlock, insertDynStmt, blockNumber); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &rawBlock, nil
+}
+
+func (s *State) GetBlockByHash(blockHash string) (*BlockDB, error) {
+
+	rawBlock := BlockDB{}
+	insertDynStmt := `SELECT * FROM public.blocks where hash = $1`
+	if err := s.db.Get(&rawBlock, insertDynStmt, blockHash); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &rawBlock, nil
+}
+
+func (s *State) GetLatestBlock() (*BlockDB, error) {
+	rawBlock := BlockDB{}
+	insertDynStmt := `SELECT * FROM public.blocks ORDER BY number DESC LIMIT 1`
+	if err := s.db.Get(&rawBlock, insertDynStmt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &rawBlock, nil
+
+}
+
 func (s *State) WriteNodeInfo(nodeInfo *NodeInfo) error {
 	nodeID := nodeInfo.Name
 	if nodeID == "" {

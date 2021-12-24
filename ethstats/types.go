@@ -32,6 +32,24 @@ type Block struct {
 	Uncles     []Block   `json:"uncles"`
 }
 
+// blockStats is the information to report about individual blocks.
+type BlockDB struct {
+	Number     int        `json:"number" db:"number"`
+	Hash       string     `json:"hash" db:"hash"`
+	ParentHash string     `json:"parentHash" db:"parent_hash"`
+	Timestamp  int        `json:"timestamp" db:"timestamp"`
+	Miner      string     `json:"miner" db:"miner"`
+	GasUsed    uint64     `json:"gasUsed" db:"gas_used"`
+	GasLimit   uint64     `json:"gasLimit" db:"gas_limit"`
+	Diff       string     `json:"difficulty" db:"difficulty"`
+	TotalDiff  string     `json:"totalDifficulty" db:"total_difficulty"`
+	Txs        int        `json:"transactions"  db:"transactions_count"`
+	TxHash     string     `json:"transactionsRoot" db:"transactions_root"`
+	Root       string     `json:"stateRoot" db:"state_root"`
+	Uncles     int        `json:"uncles" db:"uncles_count"`
+	CreatedAt  *time.Time `json:"created_at" db:"created_at"`
+}
+
 // nodeInfo is the collection of meta information about a node that is displayed
 // on the monitoring page.
 type NodeInfo struct {
