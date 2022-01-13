@@ -45,8 +45,8 @@ func DecodeMsg(message []byte) (*Msg, error) {
 	if err := json.Unmarshal(message, &msg); err != nil {
 		return nil, err
 	}
-	if len(msg.Emit) != 2 {
-		return nil, fmt.Errorf("2 items expected")
+	if len(msg.Emit) == 0 {
+		return nil, fmt.Errorf("at least one item expected")
 	}
 
 	// decode typename as string
@@ -54,10 +54,12 @@ func DecodeMsg(message []byte) (*Msg, error) {
 	if err := json.Unmarshal(msg.Emit[0], &typName); err != nil {
 		return nil, fmt.Errorf("failed to decode type: %v", err)
 	}
-	// decode data
+	// decode data (if any)
 	var data map[string]json.RawMessage
-	if err := json.Unmarshal(msg.Emit[1], &data); err != nil {
-		return nil, fmt.Errorf("failed to decode data: %v", err)
+	if len(msg.Emit) == 2 {
+		if err := json.Unmarshal(msg.Emit[1], &data); err != nil {
+			return nil, fmt.Errorf("failed to decode data: %v", err)
+		}
 	}
 
 	m := &Msg{
