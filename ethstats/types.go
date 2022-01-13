@@ -24,8 +24,8 @@ type Block struct {
 	Miner      string    `json:"miner" db:"miner"`
 	GasUsed    uint64    `json:"gasUsed" db:"gas_used"`
 	GasLimit   uint64    `json:"gasLimit" db:"gas_limit"`
-	Diff       *argBig   `json:"difficulty" db:"difficulty"`
-	TotalDiff  *argBig   `json:"totalDifficulty" db:"total_difficulty"`
+	Diff       string    `json:"difficulty" db:"difficulty"`
+	TotalDiff  string    `json:"totalDifficulty" db:"total_difficulty"`
 	Txs        []TxStats `json:"transactions"`
 	TxHash     string    `json:"transactionsRoot" db:"transactions_root"`
 	Root       string    `json:"stateRoot" db:"state_root"`

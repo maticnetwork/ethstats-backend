@@ -6,7 +6,7 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
-	"math/big"
+	"strconv"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -110,12 +110,13 @@ func (s *State) WriteBlock(b *Block) error {
 		return nil
 	}
 
-	// add default values for 'difficulty' and 'total_difficulty' which are pointers
-	if b.Diff == nil {
-		b.Diff = argBigPtr(big.NewInt(0))
+	difficulty, err := strconv.ParseInt(b.Diff, 10, 64)
+	if err != nil {
+		return err
 	}
-	if b.TotalDiff == nil {
-		b.TotalDiff = argBigPtr(big.NewInt(0))
+	total_difficulty, err := strconv.ParseInt(b.TotalDiff, 10, 64)
+	if err != nil {
+		return err
 	}
 
 	query := `INSERT INTO blocks
@@ -124,7 +125,7 @@ func (s *State) WriteBlock(b *Block) error {
 		ON CONFLICT DO NOTHING`
 
 	// write the block
-	_, err = tx.Exec(query, int(b.Number), b.Hash, b.ParentHash, int(b.Timestamp), b.Miner, int(b.GasUsed), int(b.GasLimit), b.Diff, b.TotalDiff, b.TxHash, len(b.Txs), len(b.Uncles), b.Root)
+	_, err = tx.Exec(query, int(b.Number), b.Hash, b.ParentHash, int(b.Timestamp), b.Miner, int(b.GasUsed), int(b.GasLimit), difficulty, total_difficulty, b.TxHash, len(b.Txs), len(b.Uncles), b.Root)
 	if err != nil {
 		return err
 	}

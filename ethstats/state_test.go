@@ -62,7 +62,7 @@ func TestState_WriteBlock(t *testing.T) {
 		Hash:      hash,
 		Timestamp: time.Now().Nanosecond(),
 		Txs:       []TxStats{{Hash: "0x0"}},
-		Diff:      argBigPtr(one),
+		Diff:      "0x04",
 	}
 
 	assert.NoError(t, s.WriteBlock(block))
