@@ -3,7 +3,6 @@ package ethstats
 import (
 	"database/sql"
 	"database/sql/driver"
-	"encoding/hex"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -94,21 +93,18 @@ func (a *argBig) Scan(value interface{}) error {
 }
 
 func (a *argBig) UnmarshalText(input []byte) error {
-	buf, err := decodeToHex(input)
-	if err != nil {
-		return err
-	}
-	b := new(big.Int)
-	b.SetBytes(buf)
-	*a = argBig(*b)
-	return nil
-}
+	str := string(input)
+	base := 10
 
-func decodeToHex(b []byte) ([]byte, error) {
-	str := string(b)
-	str = strings.TrimPrefix(str, "0x")
-	if len(str)%2 != 0 {
-		str = "0" + str
+	if strings.HasPrefix(str, "0x") {
+		str = str[2:]
+		base = 16
 	}
-	return hex.DecodeString(str)
+
+	big, ok := new(big.Int).SetString(str, base)
+	if !ok {
+		return fmt.Errorf("could not parse")
+	}
+	*a = argBig(*big)
+	return nil
 }

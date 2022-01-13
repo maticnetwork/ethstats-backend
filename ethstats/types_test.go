@@ -14,7 +14,7 @@ func TestTypes_Block(t *testing.T) {
 	num := argBigPtr(big.NewInt(4112))
 
 	data := `{
-		"difficulty": "0x1010",
+		"difficulty": "4112",
 		"totalDifficulty": "0x1010"
 	}`
 	assert.NoError(t, json.Unmarshal([]byte(data), &b))
