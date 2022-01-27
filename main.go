@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	defaultDBEndpoint = "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"
+	defaultDBEndpoint = "postgres://postgres:postgrespassword@localhost:5432/postgres?sslmode=disable"
 )
 
 func main() {

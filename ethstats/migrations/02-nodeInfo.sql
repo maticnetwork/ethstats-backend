@@ -11,5 +11,6 @@ CREATE TABLE IF NOT EXISTS nodeinfo
     osver TEXT,
     client TEXT,
     history boolean,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    extra_data json,
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
