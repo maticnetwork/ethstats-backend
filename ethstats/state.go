@@ -144,14 +144,37 @@ func (s *State) WriteBlock(b *Block) error {
 }
 
 func (s *State) GetNodeInfo(nodeID string) (*NodeInfo, error) {
-	info := NodeInfo{}
-	if err := s.db.Get(&info, "SELECT * FROM nodeinfo WHERE node_id=$1", nodeID); err != nil {
+
+	info2 := NodeInfo2{}
+	if err := s.db.Get(&info2, "SELECT * FROM nodeinfo WHERE node_id=$1", nodeID); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
 		return nil, err
 	}
-	return &info, nil
+
+	data := make(map[string]string)
+	err := json.Unmarshal(info2.Data, &data)
+	if err != nil {
+		return nil, err
+	}
+
+	info := &NodeInfo{
+		Name:      info2.Name,
+		Node:      info2.Node,
+		Port:      info2.Port,
+		Network:   info2.Network,
+		Protocol:  info2.Protocol,
+		API:       info2.API,
+		Os:        info2.Os,
+		OsVer:     info2.OsVer,
+		Client:    info2.Client,
+		History:   info2.History,
+		Data:      data,
+		UpdatedAt: info2.UpdatedAt,
+	}
+
+	return info, nil
 }
 
 func (s *State) WriteNodeInfo(nodeInfo *NodeInfo) error {

@@ -88,7 +88,7 @@ func TestState_NodeInfo(t *testing.T) {
 	info2, err := s.GetNodeInfo("a")
 	assert.NoError(t, err)
 
-	info2.CreatedAt = time.Time{}
+	info2.UpdatedAt = time.Time{}
 	assert.Equal(t, info, info2)
 
 	// get stats should be available but empty
