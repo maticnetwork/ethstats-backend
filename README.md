@@ -3,7 +3,7 @@
 
 ## Development
 
-Run postgresql (user=postgresql, pass=postgresql):
+Run postgresql (default user=postgres, default pass=postgrespassword):
 
 ```
 $ make postgresql-test

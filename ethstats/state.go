@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"math/big"
@@ -143,14 +144,37 @@ func (s *State) WriteBlock(b *Block) error {
 }
 
 func (s *State) GetNodeInfo(nodeID string) (*NodeInfo, error) {
-	info := NodeInfo{}
-	if err := s.db.Get(&info, "SELECT * FROM nodeinfo WHERE node_id=$1", nodeID); err != nil {
+
+	info2 := NodeInfo2{}
+	if err := s.db.Get(&info2, "SELECT * FROM nodeinfo WHERE node_id=$1", nodeID); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
 		return nil, err
 	}
-	return &info, nil
+
+	data := make(map[string]string)
+	err := json.Unmarshal(info2.Data, &data)
+	if err != nil {
+		return nil, err
+	}
+
+	info := &NodeInfo{
+		Name:      info2.Name,
+		Node:      info2.Node,
+		Port:      info2.Port,
+		Network:   info2.Network,
+		Protocol:  info2.Protocol,
+		API:       info2.API,
+		Os:        info2.Os,
+		OsVer:     info2.OsVer,
+		Client:    info2.Client,
+		History:   info2.History,
+		Data:      data,
+		UpdatedAt: info2.UpdatedAt,
+	}
+
+	return info, nil
 }
 
 func (s *State) WriteNodeInfo(nodeInfo *NodeInfo) error {
@@ -164,24 +188,40 @@ func (s *State) WriteNodeInfo(nodeInfo *NodeInfo) error {
 		return err
 	}
 
+	data, err := json.Marshal(nodeInfo.Data)
+	if err != nil {
+		return err
+	}
+
 	var count int
 	row := tx.QueryRow(fmt.Sprintf(`SELECT count(*) FROM nodeinfo Where node_id='%s'`, nodeID))
 	if err := row.Scan(&count); err != nil {
 		return err
 	}
 	if count == 1 {
+		updateQuery := `UPDATE nodeinfo SET node = $2, port = $3, network = $4, protocol = $5, api = $6, os = $7, osver = $8, client = $9, history = $10, extra_data = $11, updated_at = $12
+		WHERE node_id=$1;`
+
+		if _, err := tx.Exec(updateQuery, nodeInfo.Name, nodeInfo.Node, nodeInfo.Port, nodeInfo.Network, nodeInfo.Protocol, nodeInfo.API, nodeInfo.Os, nodeInfo.OsVer, nodeInfo.Client, nodeInfo.History, data, time.Now()); err != nil {
+			return err
+		}
+
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+
 		return nil
 	}
 
-	query := `INSERT INTO nodeinfo("node_id", "node", "port", "network", "protocol", "api", "os", "osver", "client", "history") 
-		values(:node_id, :node, :port, :network, :protocol, :api, :os, :osver, :client, :history)`
+	insertQuery := `INSERT INTO nodeinfo("node_id", "node", "port", "network", "protocol", "api", "os", "osver", "client", "history", "extra_data") 
+		values($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
 
-	if _, err := tx.NamedExec(query, nodeInfo); err != nil {
+	if _, err := tx.Exec(insertQuery, nodeInfo.Name, nodeInfo.Node, nodeInfo.Port, nodeInfo.Network, nodeInfo.Protocol, nodeInfo.API, nodeInfo.Os, nodeInfo.OsVer, nodeInfo.Client, nodeInfo.History, data); err != nil {
 		return err
 	}
 
 	// write the initial node stats row with empty values so we can update it later more efficiently
-	query = `INSERT INTO nodestats("node_id") VALUES ($1)`
+	query := `INSERT INTO nodestats("node_id") VALUES ($1)`
 
 	if _, err := tx.Exec(query, nodeID); err != nil {
 		return err
