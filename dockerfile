@@ -8,10 +8,10 @@ COPY go.mod ./
 COPY go.sum ./
 RUN go mod download
 
-COPY *.go ./
+COPY . ./
 
 RUN go build -o /wsimple
 
-EXPOSE 8080
+EXPOSE 8000
 
-CMD [ "/wsimple" ]
+CMD [ "/wsimple", "--collector.secret", "hello" ]
