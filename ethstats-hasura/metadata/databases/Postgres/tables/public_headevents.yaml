@@ -1,0 +1,15 @@
+table:
+  name: headevents
+  schema: public
+object_relationships:
+- name: nodeinfo
+  using:
+    foreign_key_constraint_on: node_id
+array_relationships:
+- name: headentries
+  using:
+    foreign_key_constraint_on:
+      column: event_id
+      table:
+        name: headentry
+        schema: public

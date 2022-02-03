@@ -1,0 +1,11 @@
+table:
+  name: blocks
+  schema: public
+array_relationships:
+- name: block_transactions
+  using:
+    foreign_key_constraint_on:
+      column: block_hash
+      table:
+        name: block_transactions
+        schema: public

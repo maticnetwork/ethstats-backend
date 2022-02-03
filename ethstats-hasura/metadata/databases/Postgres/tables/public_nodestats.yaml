@@ -1,0 +1,7 @@
+table:
+  name: nodestats
+  schema: public
+object_relationships:
+- name: nodeinfo
+  using:
+    foreign_key_constraint_on: node_id
