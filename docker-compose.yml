@@ -29,5 +29,12 @@ services:
       HASURA_GRAPHQL_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
       HASURA_GRAPHQL_ENABLE_CONSOLE: 'true' # set to "false" to disable console
       HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
+  frontend:
+    image: ethstats-frontend:latest
+    ports:
+    - "3000:3000"
+    depends_on:
+    - "graphql-engine"
+    restart: always
 volumes:
   db_data:
