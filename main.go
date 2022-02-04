@@ -20,7 +20,7 @@ func main() {
 	var logLevel string
 
 	flag.StringVar(&config.Endpoint, "db-endpoint", defaultDBEndpoint, "")
-	flag.StringVar(&config.CollectorAddr, "collector.addr", "localhost:8000", "ws service address for collector")
+	flag.StringVar(&config.CollectorAddr, "collector.addr", "0.0.0.0:8000", "ws service address for collector")
 	flag.StringVar(&config.CollectorSecret, "collector.secret", "", "")
 	flag.StringVar(&logLevel, "log-level", "Log level", "info")
 	flag.StringVar(&config.FrontendAddr, "frontend.addr", "", "")
