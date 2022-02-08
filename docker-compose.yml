@@ -15,6 +15,8 @@ services:
     - "8000:8000"
     depends_on:
     - "postgres"
+    environment:
+      PERSIST_DAYS : 5
     restart: always
   graphql-engine:
     image: hasura/graphql-engine:v2.1.1.cli-migrations-v3

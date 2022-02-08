@@ -6,7 +6,7 @@ import (
 
 func (s *State) InitCleanCRON(days int) error {
 	go func() error {
-		every := time.Duration(days) * time.Hour * 24
+		every := time.Hour * 24
 		ticker := time.NewTicker(every)
 		defer ticker.Stop()
 
