@@ -20,6 +20,6 @@ CREATE TABLE IF NOT EXISTS blocks
 
 CREATE TABLE IF NOT EXISTS block_transactions
 (
-    block_hash TEXT REFERENCES blocks(hash),
+    block_hash TEXT REFERENCES blocks(hash) ON DELETE CASCADE,
     txn_hash TEXT
 );

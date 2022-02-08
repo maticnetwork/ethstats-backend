@@ -25,6 +25,7 @@ func main() {
 	flag.StringVar(&logLevel, "log-level", "Log level", "info")
 	flag.StringVar(&config.FrontendAddr, "frontend.addr", "", "")
 	flag.StringVar(&config.FrontendSecret, "frontend.secret", "", "")
+	flag.IntVar(&config.PersistDataDuration, "persist-days", 5, "Data older than this days will be deleted")
 	flag.Parse()
 
 	logger := hclog.New(&hclog.LoggerOptions{Level: hclog.LevelFromString(logLevel)})

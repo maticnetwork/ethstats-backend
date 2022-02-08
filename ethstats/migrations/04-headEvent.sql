@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS headevents (
 );
 
 CREATE TABLE IF NOT EXISTS headentry (
-    event_id TEXT REFERENCES headevents(event_id),
+    event_id TEXT REFERENCES headevents(event_id) ON DELETE CASCADE,
     block_number integer NOT NULL,
     block_hash TEXT,
     parent_hash TEXT,
