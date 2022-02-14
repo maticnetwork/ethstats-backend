@@ -9,7 +9,7 @@ Run postgresql (user=postgresql, pass=postgresql):
 $ make postgresql-test
 ```
 
-Run postgresql admin panel (email=postgres@gmail.com, pass=postgres, http=localhost:80):
+Run postgresql admin panel (email=postgres@gmail.com, pass=postgrespassword, http=localhost:80):
 
 ```
 $ postgresql-test-admin

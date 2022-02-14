@@ -16,4 +16,5 @@ EXPOSE 8000
 
 #Persist data for these days. Deletes older data.
 ENV PERSIST_DAYS 5
+
 CMD [ "sh", "-c",  "/wsimple --collector.secret hello --persist-days ${PERSIST_DAYS}" ]

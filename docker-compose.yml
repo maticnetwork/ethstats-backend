@@ -1,4 +1,5 @@
 version: '3.3'
+
 services:
   postgres:
     image: postgres:12
@@ -38,5 +39,6 @@ services:
     depends_on:
     - "graphql-engine"
     restart: always
+
 volumes:
   db_data:

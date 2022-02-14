@@ -1,11 +1,12 @@
 package ethstats
 
 import (
+	"fmt"
 	"time"
 )
 
 func (s *State) InitCleanCRON(days int) error {
-	go func() error {
+	go func() {
 		every := time.Hour * 24
 		ticker := time.NewTicker(every)
 		defer ticker.Stop()
@@ -15,7 +16,7 @@ func (s *State) InitCleanCRON(days int) error {
 			case <-ticker.C:
 				err := s.DeleteOlderData(days)
 				if err != nil {
-					return err
+					fmt.Printf("[ERROR]: %v", err)
 				}
 			}
 		}
