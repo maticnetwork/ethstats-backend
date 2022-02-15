@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	defaultDBEndpoint   = "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"
+	defaultDBEndpoint   = "postgres://postgres:postgrespassword@postgres:5432/postgres?sslmode=disable"
 	persistDataDuration int
 )
 
