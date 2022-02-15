@@ -9,12 +9,11 @@ import (
 )
 
 type Config struct {
-	CollectorAddr       string
-	CollectorSecret     string
-	Endpoint            string
-	FrontendAddr        string
-	FrontendSecret      string
-	PersistDataDuration int //days of data to perisist in the Database (0 -> infinite)
+	CollectorAddr   string
+	CollectorSecret string
+	Endpoint        string
+	FrontendAddr    string
+	FrontendSecret  string
 }
 
 type Server struct {
@@ -33,13 +32,6 @@ func NewServer(logger hclog.Logger, config *Config) (*Server, error) {
 		logger: logger,
 		config: config,
 		state:  state,
-	}
-
-	if config.PersistDataDuration > 0 {
-		err = state.InitCleanCRON(config.PersistDataDuration)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	// start http/ws collector server

@@ -12,21 +12,52 @@ import (
 )
 
 var (
-	defaultDBEndpoint = "postgres://postgres:postgrespassword@postgres:5432/postgres?sslmode=disable"
+	defaultDBEndpoint   = "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"
+	persistDataDuration int
 )
 
 func main() {
 	config := &ethstats.Config{}
 	var logLevel string
 
-	flag.StringVar(&config.Endpoint, "db-endpoint", defaultDBEndpoint, "")
-	flag.StringVar(&config.CollectorAddr, "collector.addr", "0.0.0.0:8000", "ws service address for collector")
-	flag.StringVar(&config.CollectorSecret, "collector.secret", "", "")
-	flag.StringVar(&logLevel, "log-level", "Log level", "info")
-	flag.StringVar(&config.FrontendAddr, "frontend.addr", "", "")
-	flag.StringVar(&config.FrontendSecret, "frontend.secret", "", "")
-	flag.IntVar(&config.PersistDataDuration, "persist-days", 5, "Data older than this days will be deleted")
-	flag.Parse()
+	serverCMD := flag.NewFlagSet("server", flag.ExitOnError)
+	serverCMD.StringVar(&config.Endpoint, "db-endpoint", defaultDBEndpoint, "")
+	serverCMD.StringVar(&config.CollectorAddr, "collector.addr", "0.0.0.0:8000", "ws service address for collector")
+	serverCMD.StringVar(&config.CollectorSecret, "collector.secret", "", "")
+	serverCMD.StringVar(&logLevel, "log-level", "Log level", "info")
+	serverCMD.StringVar(&config.FrontendAddr, "frontend.addr", "", "")
+	serverCMD.StringVar(&config.FrontendSecret, "frontend.secret", "", "")
+
+	purgeCMD := flag.NewFlagSet("purge", flag.ExitOnError)
+	purgeCMD.IntVar(&persistDataDuration, "persist-days", 0, "Data older than this days will be deleted")
+
+	switch os.Args[1] {
+	case "server":
+		serverCMD.Parse(os.Args[2:])
+
+	case "purge":
+		purgeCMD.Parse(os.Args[2:])
+		if persistDataDuration > 0 {
+			state, err := ethstats.NewState(config.Endpoint)
+			if err != nil {
+				fmt.Printf("[ERROR]: %v", err)
+				os.Exit(0)
+			}
+			err = state.DeleteOlderData(persistDataDuration)
+			if err != nil {
+				fmt.Printf("[ERROR]: %v", err)
+				os.Exit(0)
+			}
+			fmt.Printf("[INFO]: Data older than %d days deleted\n", persistDataDuration)
+		} else {
+			fmt.Println("[ERROR]: persist-days must be greater than 0")
+		}
+		os.Exit(0)
+
+	default:
+		fmt.Println("expected 'server' or 'purge' subcommands")
+		os.Exit(1)
+	}
 
 	logger := hclog.New(&hclog.LoggerOptions{Level: hclog.LevelFromString(logLevel)})
 	srv, err := ethstats.NewServer(logger, config)
