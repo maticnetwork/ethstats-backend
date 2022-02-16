@@ -12,7 +12,7 @@ RUN go build -o /wsimple
 
 EXPOSE 8000
 
-FROM alpine:3.11.3
+FROM alpine:3.15
 COPY --from=builder /wsimple .
 
 # executable

@@ -13,7 +13,7 @@ env:
   ECS_CLUSTER: polygon-technology-cluster    # set this to your Amazon ECS cluster name
   ECS_TASK_DEFINITION: taskdef.json          # set this to the path to your Amazon ECS task definition
                                              # file, e.g. .aws/task-definition.json
-  CONTAINER_NAME: polygon-technology         # set this to the name of the container in the
+  CONTAINER_NAME: ethstats-backend           # set this to the name of the container in the
                                              # containerDefinitions section of your task definition
 
 jobs:
