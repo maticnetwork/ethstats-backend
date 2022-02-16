@@ -72,6 +72,66 @@ func TestState_WriteBlock(t *testing.T) {
 	assert.Len(t, block2.Txs, 1)
 }
 
+func TestState_DeleteOlderData(t *testing.T) {
+	db, closeFn := setupPostgresql(t)
+	defer closeFn()
+
+	s, err := NewStateWithDB(db)
+	assert.NoError(t, err)
+
+	//Block A
+	hashA := "0x1234"
+	blockA := &Block{
+		Number:    99999,
+		Hash:      hashA,
+		Timestamp: time.Now().Nanosecond(),
+		Txs:       []TxStats{{Hash: "0x0"}},
+		Diff:      argBigPtr(one),
+	}
+
+	//Block B to be inserted after 2 seconds
+	hashB := "0x1235"
+	blockB := &Block{
+		Number:    99998,
+		Hash:      hashB,
+		Timestamp: time.Now().Nanosecond(),
+		Txs:       []TxStats{{Hash: "0x1"}, {Hash: "0x2"}},
+		Diff:      argBigPtr(one),
+	}
+
+	//Writing Block A
+	assert.NoError(t, s.WriteBlock(blockA))
+
+	//Sleeping for 2 seconds
+	time.Sleep(2 * time.Second)
+
+	//Writing Block B
+	assert.NoError(t, s.WriteBlock(blockB))
+
+	//Checking Presence of Block A before Deletion
+	block2A, err := s.GetBlock(hashA)
+	assert.NoError(t, err)
+	assert.Len(t, block2A.Txs, 1)
+
+	//Checking Presence of Block B before Deletion
+	block2B, err := s.GetBlock(hashB)
+	assert.NoError(t, err)
+	assert.Len(t, block2B.Txs, 2)
+
+	//Deleting data older than 2 seconds
+	assert.NoError(t, s.DeleteOlderData(2))
+
+	//This Block Should be Deleted and return nil
+	block2A, err = s.GetBlock(hashA)
+	assert.NoError(t, err)
+	assert.Nil(t, block2A)
+
+	//This Block should exist and have two transactions
+	block2B, err = s.GetBlock(hashB)
+	assert.NoError(t, err)
+	assert.Len(t, block2B.Txs, 2)
+}
+
 func TestState_NodeInfo(t *testing.T) {
 	db, closeFn := setupPostgresql(t)
 	defer closeFn()

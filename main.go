@@ -43,6 +43,9 @@ func main() {
 				fmt.Printf("[ERROR]: %v", err)
 				os.Exit(0)
 			}
+			persistDataDuration = persistDataDuration * 24 * 60 * 60
+
+			//send persistData Duration in seconds
 			err = state.DeleteOlderData(persistDataDuration)
 			if err != nil {
 				fmt.Printf("[ERROR]: %v", err)
