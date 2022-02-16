@@ -214,6 +214,29 @@ func (s *State) WriteNodeStats(nodeId string, stats *NodeStats) error {
 	return nil
 }
 
+//Deletes data older than x seconds
+func (s *State) DeleteOlderData(seconds int) error {
+	tx, err := s.db.Beginx()
+	if err != nil {
+		return err
+	}
+
+	query := fmt.Sprintf("DELETE FROM public.blocks WHERE public.blocks.created_at < now() - interval '%d seconds';", seconds)
+	if _, err := tx.Exec(query); err != nil {
+		return err
+	}
+
+	query = fmt.Sprintf("DELETE FROM public.headevents WHERE public.headevents.created_at < now() - interval '%d seconds';", seconds)
+	if _, err := tx.Exec(query); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *State) GetHeadEvent(eventID string) (*HeadEvent, error) {
 	evnt := HeadEvent{
 		Added:   []BlockStub{},

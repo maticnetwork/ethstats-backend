@@ -1,0 +1,6 @@
+- "!include public_block_transactions.yaml"
+- "!include public_blocks.yaml"
+- "!include public_headentry.yaml"
+- "!include public_headevents.yaml"
+- "!include public_nodeinfo.yaml"
+- "!include public_nodestats.yaml"

@@ -1,0 +1,16 @@
+table:
+  name: headentry
+  schema: public
+object_relationships:
+- name: block
+  using:
+    manual_configuration:
+      column_mapping:
+        block_hash: hash
+      insertion_order: null
+      remote_table:
+        name: blocks
+        schema: public
+- name: headevent
+  using:
+    foreign_key_constraint_on: event_id

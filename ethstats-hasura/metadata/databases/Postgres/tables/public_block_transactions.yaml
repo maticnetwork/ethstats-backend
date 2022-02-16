@@ -1,0 +1,7 @@
+table:
+  name: block_transactions
+  schema: public
+object_relationships:
+- name: block
+  using:
+    foreign_key_constraint_on: block_hash

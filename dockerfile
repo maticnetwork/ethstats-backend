@@ -8,10 +8,13 @@ COPY go.mod ./
 COPY go.sum ./
 RUN go mod download
 
-COPY *.go ./
+COPY . ./
 
 RUN go build -o /wsimple
 
-EXPOSE 8080
+EXPOSE 8000
 
-CMD [ "/wsimple" ]
+#Persist data for these days. Deletes older data.
+ENV PERSIST_DAYS 5
+
+CMD [ "sh", "-c",  "/wsimple --collector.secret hello --persist-days ${PERSIST_DAYS}" ]

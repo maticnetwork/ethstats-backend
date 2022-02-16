@@ -1,0 +1,44 @@
+version: '3.3'
+
+services:
+  postgres:
+    image: postgres:12
+    ports:
+    - "5432:5432"
+    restart: always
+    volumes:
+    - db_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: postgrespassword
+  ethstats:
+    image: ethstats-backend:latest
+    ports:
+    - "8000:8000"
+    depends_on:
+    - "postgres"
+    environment:
+      PERSIST_DAYS : 5
+    restart: always
+  graphql-engine:
+    image: hasura/graphql-engine:v2.1.1.cli-migrations-v3
+    ports:
+    - "8080:8080"
+    volumes:
+    - ./ethstats-hasura/metadata:/hasura-metadata
+    depends_on:
+    - "ethstats"
+    restart: always
+    environment:
+      HASURA_GRAPHQL_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
+      HASURA_GRAPHQL_ENABLE_CONSOLE: 'true' # set to "false" to disable console
+      HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
+  frontend:
+    image: ethstats-frontend:latest
+    ports:
+    - "3000:3000"
+    depends_on:
+    - "graphql-engine"
+    restart: always
+
+volumes:
+  db_data:
