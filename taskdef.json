@@ -7,6 +7,7 @@
         {
             "name": "ethstats-backend",
             "image": "",
+            "command": ["server"],
             "resourceRequirements": null,
             "essential": true,
             "portMappings": [
