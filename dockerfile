@@ -16,4 +16,4 @@ FROM alpine:3.15
 COPY --from=builder /wsimple .
 
 # executable
-ENTRYPOINT [ "./wsimple server" ]
+ENTRYPOINT [ "/wsimple" ]
