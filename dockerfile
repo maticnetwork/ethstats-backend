@@ -1,6 +1,4 @@
-# syntax=docker/dockerfile:1
-
-FROM golang:1.16-alpine
+FROM golang:1.17-alpine as builder
 
 WORKDIR /app
 
@@ -14,7 +12,8 @@ RUN go build -o /wsimple
 
 EXPOSE 8000
 
-#Persist data for these days. Deletes older data.
-ENV PERSIST_DAYS 5
+FROM alpine:3.11.3
+COPY --from=builder /wsimple .
 
-CMD [ "sh", "-c",  "/wsimple --collector.secret hello --persist-days ${PERSIST_DAYS}" ]
+# executable
+ENTRYPOINT [ "./wsimple server" ]

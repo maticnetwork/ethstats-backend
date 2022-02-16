@@ -1,0 +1,59 @@
+{
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "inferenceAccelerators": [],
+    "containerDefinitions": [
+        {
+            "name": "ethstats-backend",
+            "image": "",
+            "resourceRequirements": null,
+            "essential": true,
+            "portMappings": [
+                {
+                    "containerPort": "8000",
+                    "protocol": "tcp"
+                }
+            ],
+            "environment": [
+                {
+                    "name": "HOST",
+                    "value": "0.0.0.0"
+                }
+            ],
+            "environmentFiles": [],
+            "mountPoints": null,
+            "volumesFrom": null,
+            "hostname": null,
+            "user": null,
+            "workingDirectory": null,
+            "extraHosts": null,
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/ethstats-backend",
+                    "awslogs-region": "us-west-2",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            },
+            "ulimits": null,
+            "dockerLabels": null,
+            "dependsOn": null,
+            "repositoryCredentials": {
+                "credentialsParameter": ""
+            }
+        }
+    ],
+    "volumes": [],
+    "networkMode": "awsvpc",
+    "memory": "1024",
+    "cpu": "512",
+    "executionRoleArn": "arn:aws:iam::234346247508:role/ecsTaskExecutionRole",
+    "family": "ethstats-backend",
+    "taskRoleArn": "arn:aws:iam::234346247508:role/ecsTaskRoleEthstatsBackend",
+    "runtimePlatform": {
+        "operatingSystemFamily": "LINUX"
+    },
+    "tags": [],
+    "placementConstraints": []
+}
