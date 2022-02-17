@@ -67,7 +67,7 @@ jobs:
       id: task-def-graphql
       uses: aws-actions/amazon-ecs-render-task-definition@v1
       with:
-        task-definition: ${{ steps.render-task-def-container.outputs.task-definition }}
+        task-definition: ${{ steps.task-def.outputs.task-definition }}
         container-name: ${{ env.CONTAINER_NAME_GRAPHQL }}
         image: ${{ steps.build-image.outputs.image_graphql }}
 
