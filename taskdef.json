@@ -53,6 +53,55 @@
             "repositoryCredentials": {
                 "credentialsParameter": ""
             }
+        },
+        {
+            "name": "graphql-engine",
+            "image": "",
+            "resourceRequirements": null,
+            "essential": true,
+            "portMappings": [
+                {
+                    "containerPort": "8080",
+                    "protocol": "tcp"
+                }
+            ],
+            "environment": [
+                {
+                    "name": "HASURA_GRAPHQL_ENABLE_CONSOLE",
+                    "value": "true"
+                },
+                {
+                    "name": "HASURA_GRAPHQL_ENABLED_LOG_TYPES",
+                    "value": "startup, http-log, webhook-log, websocket-log, query-log"
+                }
+            ],
+            "environmentFiles": [],
+            "secrets": [
+                {
+                    "name": "HASURA_GRAPHQL_DATABASE_URL",
+                    "valueFrom": "arn:aws:ssm:us-west-2:234346247508:parameter/ethstats-backend-db-endpoint"
+                }
+            ],
+            "mountPoints": null,
+            "volumesFrom": null,
+            "hostname": null,
+            "user": null,
+            "workingDirectory": null,
+            "extraHosts": null,
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/ethstats-backend",
+                    "awslogs-region": "us-west-2",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            },
+            "ulimits": null,
+            "dockerLabels": null,
+            "dependsOn": null,
+            "repositoryCredentials": {
+                "credentialsParameter": ""
+            }
         }
     ],
     "volumes": [],

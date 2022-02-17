@@ -9,12 +9,14 @@ on:
 env:
   AWS_REGION: us-west-2                      # set this to your preferred AWS region, e.g. us-west-1
   ECR_REPOSITORY: ethstats-backend           # set this to your Amazon ECR repository name
+  ECR_REPOSITORY_GRAPHQL: graphql-engine
   ECS_SERVICE: ethstats-backend-service      # set this to your Amazon ECS service name
   ECS_CLUSTER: polygon-technology-cluster    # set this to your Amazon ECS cluster name
   ECS_TASK_DEFINITION: taskdef.json          # set this to the path to your Amazon ECS task definition
                                              # file, e.g. .aws/task-definition.json
   CONTAINER_NAME: ethstats-backend           # set this to the name of the container in the
-                                             # containerDefinitions section of your task definition
+  CONTAINER_NAME_GRAPHQL: graphql-engine     # set this to the name of the container in the
+                                             
 
 jobs:
   deploy:
@@ -47,20 +49,32 @@ jobs:
         # push it to ECR so that it can
         # be deployed to ECS.
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_GRAPHQL:$IMAGE_TAG -f Dockerfile.graphql .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY_GRAPHQL:$IMAGE_TAG
         echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-    - name: Fill in the new image ID in the Amazon ECS task definition
+        echo "::set-output name=image_graphql::$ECR_REGISTRY/$ECR_REPOSITORY_GRAPHQL:$IMAGE_TAG"
+    
+    - name: Render Amazon ECS task definition for first container
       id: task-def
       uses: aws-actions/amazon-ecs-render-task-definition@v1
       with:
         task-definition: ${{ env.ECS_TASK_DEFINITION }}
         container-name: ${{ env.CONTAINER_NAME }}
         image: ${{ steps.build-image.outputs.image }}
+    
+    - name: Modify Amazon ECS task definition with second container
+      id: task-def-graphql
+      uses: aws-actions/amazon-ecs-render-task-definition@v1
+      with:
+        task-definition: ${{ steps.render-task-def-container.outputs.task-definition }}
+        container-name: ${{ env.CONTAINER_NAME_GRAPHQL }}
+        image: ${{ steps.build-image.outputs.image_graphql }}
 
     - name: Deploy Amazon ECS task definition
       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
       with:
-        task-definition: ${{ steps.task-def.outputs.task-definition }}
+        task-definition: ${{ steps.task-graphql.outputs.task-definition }}
         service: ${{ env.ECS_SERVICE }}
         cluster: ${{ env.ECS_CLUSTER }}
         wait-for-service-stability: true
