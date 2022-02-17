@@ -59,7 +59,7 @@
     "networkMode": "awsvpc",
     "memory": "1024",
     "cpu": "512",
-    "executionRoleArn": "arn:aws:iam::234346247508:role/ecsTaskExecutionRole",
+    "executionRoleArn": "arn:aws:iam::234346247508:role/ecsTaskRoleEthstatsBackend",
     "family": "ethstats-backend-taskdef",
     "taskRoleArn": "arn:aws:iam::234346247508:role/ecsTaskRoleEthstatsBackend",
     "runtimePlatform": {
