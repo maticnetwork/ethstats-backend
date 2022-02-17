@@ -25,7 +25,7 @@
             "environmentFiles": [],
             "secrets": [
                 {
-                    "name": "DATABASE_ENDPOINT",
+                    "name": "DB_ENDPOINT",
                     "valueFrom": "arn:aws:ssm:us-west-2:234346247508:parameter/ethstats-backend-db-endpoint"
                 },
                 {
