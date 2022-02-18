@@ -73,10 +73,6 @@
                 {
                     "name": "HASURA_GRAPHQL_ENABLED_LOG_TYPES",
                     "value": "startup, http-log, webhook-log, websocket-log, query-log"
-                },
-                {
-                    "name": "HASURA_GRAPHQL_ADMIN_SECRET",
-                    "value": "arn:aws:ssm:us-west-2:234346247508:parameter/ethstats-backend-hasura-admin-secret"
                 }
             ],
             "environmentFiles": [],
@@ -84,6 +80,10 @@
                 {
                     "name": "HASURA_GRAPHQL_DATABASE_URL",
                     "valueFrom": "arn:aws:ssm:us-west-2:234346247508:parameter/ethstats-backend-db-endpoint"
+                },
+                {
+                    "name": "HASURA_GRAPHQL_ADMIN_SECRET",
+                    "valueFrom": "arn:aws:ssm:us-west-2:234346247508:parameter/ethstats-backend-hasura-admin-secret"
                 }
             ],
             "mountPoints": null,
