@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - vcastellm/pos-123-deploy-ethstats-backend
 
 env:
   AWS_REGION: us-west-2                      # set this to your preferred AWS region, e.g. us-west-1
