@@ -20,10 +20,15 @@ func main() {
 	config := &ethstats.Config{}
 	var logLevel string
 
+	dbEndpoint := os.Getenv("DB_ENDPOINT")
+	if dbEndpoint == "" {
+		dbEndpoint = defaultDBEndpoint
+	}
+
 	serverCMD := flag.NewFlagSet("server", flag.ExitOnError)
-	serverCMD.StringVar(&config.Endpoint, "db-endpoint", defaultDBEndpoint, "")
+	serverCMD.StringVar(&config.Endpoint, "db-endpoint", dbEndpoint, "")
 	serverCMD.StringVar(&config.CollectorAddr, "collector.addr", "0.0.0.0:8000", "ws service address for collector")
-	serverCMD.StringVar(&config.CollectorSecret, "collector.secret", "", "")
+	serverCMD.StringVar(&config.CollectorSecret, "collector.secret", os.Getenv("COLLECTOR_SECRET"), "")
 	serverCMD.StringVar(&logLevel, "log-level", "Log level", "info")
 	serverCMD.StringVar(&config.FrontendAddr, "frontend.addr", "", "")
 	serverCMD.StringVar(&config.FrontendSecret, "frontend.secret", "", "")
