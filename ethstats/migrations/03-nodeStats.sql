@@ -5,9 +5,9 @@ CREATE TABLE IF NOT EXISTS nodestats
     active boolean DEFAULT false,
     syncing boolean DEFAULT false,
     mining boolean DEFAULT false,
-    hashrate integer DEFAULT 0,
+    hashrate BIGINT DEFAULT 0,
     peers integer DEFAULT 0,
-    gasprice integer DEFAULT 0,
-    uptime integer DEFAULT 0,
+    gasprice BIGINT DEFAULT 0,
+    uptime BIGINT DEFAULT 0,
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
