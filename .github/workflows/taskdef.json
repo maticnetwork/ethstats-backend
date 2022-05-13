@@ -23,7 +23,7 @@
                 },
                 {
                     "name": "FRONTEND_ADDR",
-                    "value": "wss://bor-mainnet.vitwit.com:3000"
+                    "value": "ws://bor-mainnet.vitwit.com:3000"
                 }
             ],
             "environmentFiles": [],
