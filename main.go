@@ -30,8 +30,8 @@ func main() {
 	serverCMD.StringVar(&config.CollectorAddr, "collector.addr", "0.0.0.0:8000", "ws service address for collector")
 	serverCMD.StringVar(&config.CollectorSecret, "collector.secret", os.Getenv("COLLECTOR_SECRET"), "")
 	serverCMD.StringVar(&logLevel, "log-level", "Log level", "info")
-	serverCMD.StringVar(&config.FrontendAddr, "frontend.addr", "", "")
-	serverCMD.StringVar(&config.FrontendSecret, "frontend.secret", "", "")
+	serverCMD.StringVar(&config.FrontendAddr, "frontend.addr", os.Getenv("FRONTEND_ADDR"), "")
+	serverCMD.StringVar(&config.FrontendSecret, "frontend.secret", os.Getenv("FRONTEND_SECRET"), "")
 
 	purgeCMD := flag.NewFlagSet("purge", flag.ExitOnError)
 	purgeCMD.IntVar(&persistDataDuration, "persist-days", 0, "Data older than this days will be deleted")

@@ -20,17 +20,25 @@
                 {
                     "name": "HOST",
                     "value": "0.0.0.0"
+                },
+                {
+                    "name": "FRONTEND_ADDR",
+                    "value": "bor-mainnet.vitwit.com:3000"
                 }
             ],
             "environmentFiles": [],
             "secrets": [
                 {
                     "name": "DB_ENDPOINT",
-                    "valueFrom": "arn:aws:ssm:us-west-2:234346247508:parameter/ethstats-backend-db-endpoint"
+                    "valueFrom": "arn:aws:ssm:us-west-2:234346247508:parameter/ethstats-backend/db-endpoint"
                 },
                 {
                     "name": "COLLECTOR_SECRET",
-                    "valueFrom": "arn:aws:ssm:us-west-2:234346247508:parameter/ethstats-backend-collector-secret"
+                    "valueFrom": "arn:aws:ssm:us-west-2:234346247508:parameter/ethstats-backend/collector-secret"
+                },
+                {
+                    "name": "FRONTEND_SECRET",
+                    "valueFrom": "arn:aws:ssm:us-west-2:234346247508:parameter/ethstats-backend/frontend-secret"
                 }
             ],
             "mountPoints": null,
@@ -79,11 +87,11 @@
             "secrets": [
                 {
                     "name": "HASURA_GRAPHQL_DATABASE_URL",
-                    "valueFrom": "arn:aws:ssm:us-west-2:234346247508:parameter/ethstats-backend-db-endpoint"
+                    "valueFrom": "arn:aws:ssm:us-west-2:234346247508:parameter/ethstats-backend/db-endpoint"
                 },
                 {
                     "name": "HASURA_GRAPHQL_ADMIN_SECRET",
-                    "valueFrom": "arn:aws:ssm:us-west-2:234346247508:parameter/ethstats-backend-hasura-admin-secret"
+                    "valueFrom": "arn:aws:ssm:us-west-2:234346247508:parameter/ethstats-backend/hasura/admin-secret"
                 }
             ],
             "mountPoints": null,
