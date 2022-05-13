@@ -169,12 +169,16 @@ func (s *State) WriteNodeInfo(nodeInfo *NodeInfo) error {
 	if err := row.Scan(&count); err != nil {
 		return err
 	}
-	if count == 1 {
-		return nil
-	}
 
-	query := `INSERT INTO nodeinfo("node_id", "node", "port", "network", "protocol", "api", "os", "osver", "client", "history") 
-		values(:node_id, :node, :port, :network, :protocol, :api, :os, :osver, :client, :history)`
+	query := ""
+	if count == 0 {
+		query = `INSERT INTO nodeinfo("node_id", "node", "port", "network", "protocol", "api", "os", "osver", "client", "history") 
+			values(:node_id, :node, :port, :network, :protocol, :api, :os, :osver, :client, :history)`
+	} else {
+		query = `UPDATE nodeinfo SET "node" = :node, "port" = :port, "network" = :network, "protocol" = :protocol, "api" = :api,
+		"os" = :os, "osver" = :osver, "client" = :client, "history" = :history
+		WHERE node_id=:node_id`
+	}
 
 	if _, err := tx.NamedExec(query, nodeInfo); err != nil {
 		return err
