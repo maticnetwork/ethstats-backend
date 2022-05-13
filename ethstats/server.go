@@ -72,9 +72,9 @@ func (s *Server) startCollectorServer() {
 		}
 	}()
 
-	s.logger.Info("Collector ws server started", "addr", s.config.CollectorAddr, "secret", collector.secret)
+	s.logger.Info("Collector ws server started", "addr", s.config.CollectorAddr)
 	if s.config.FrontendAddr != "" {
-		s.logger.Info("Frontend downstream enabled", "addr", s.config.FrontendAddr, "secret", s.config.FrontendSecret)
+		s.logger.Info("Frontend downstream enabled", "addr", s.config.FrontendAddr)
 	}
 }
 
