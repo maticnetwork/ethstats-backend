@@ -68,7 +68,6 @@ func main() {
 	}
 
 	logger := hclog.New(&hclog.LoggerOptions{Level: hclog.LevelFromString(logLevel)})
-	fmt.Printf("[TEST]: %v [END]", config)
 	srv, err := ethstats.NewServer(logger, config)
 	if err != nil {
 		fmt.Printf("[ERROR]: %v", err)
