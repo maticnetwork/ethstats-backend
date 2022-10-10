@@ -3,7 +3,7 @@
 
 ## Development
 
-Run postgresql (user=postgresql, pass=postgresql):
+Run postgresql (user=postgresql(default), pass=postgrespassword):
 
 ```
 $ make postgresql-test
@@ -12,13 +12,13 @@ $ make postgresql-test
 Run postgresql admin panel (email=postgres@gmail.com, pass=postgrespassword, http=localhost:80):
 
 ```
-$ postgresql-test-admin
+$ make postgresql-test-admin
 ```
 
 Run ethstats backend:
 
 ```
-$ go run main.go --collector.secret secret [--frontend.addr ws://localhost:3000/api --frontend.secret secret2]
+$ go run main.go server --collector.secret secret [--db-endpoint "postgres://postgres:postgrespassword@127.0.0.1:5432/postgres?sslmode=disable" --frontend.addr ws://localhost:3000/api --frontend.secret secret2]
 ```
 
 Start geth client:
@@ -27,9 +27,10 @@ Start geth client:
 $ docker run --net=host ethereum/client-go --dev --dev.period 1 --ethstats a:secret@localhost:8000
 ```
 
-Run ethstats frontend (goerli/ethstats repo):
+Run ethstats frontend ([goerli/ethstats-server repo](https://github.com/goerli/ethstats-server)):
 
 ```
+$ npm ci
 $ grunt poa
 $ WS_SECRET="secret2" npm start
 ```
