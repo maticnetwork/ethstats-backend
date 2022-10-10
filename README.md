@@ -19,7 +19,6 @@ Run ethstats backend:
 
 ```
 $ go run main.go server \
-    --collector.addr localhost:8000 \
     --collector.secret secret \
     --db-endpoint "postgres://postgres:postgrespassword@127.0.0.1:5432/postgres?sslmode=disable" \
     --frontend.addr ws://localhost:3000/api \
