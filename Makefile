@@ -2,7 +2,7 @@ SHELL := /bin/bash
 POSTGRES_PASSWORD := postgrespassword
 PORT := 5432
 ADMIN_PORT := 80
-PGADMIN_DEFAULT_EMAIL := postgres@gmail.com
+PGADMIN_DEFAULT_EMAIL := postgres@example.com
 
 postgresql-test:
 	docker run \

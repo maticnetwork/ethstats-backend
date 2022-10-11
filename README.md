@@ -18,13 +18,17 @@ $ make postgresql-test-admin
 Run ethstats backend:
 
 ```
-$ go run main.go server --collector.secret secret [--db-endpoint "postgres://postgres:postgrespassword@127.0.0.1:5432/postgres?sslmode=disable" --frontend.addr ws://localhost:3000/api --frontend.secret secret2]
+$ go run main.go server \
+    --collector.secret secret \
+    --db-endpoint "postgres://postgres:postgrespassword@127.0.0.1:5432/postgres?sslmode=disable" \
+    --frontend.addr ws://localhost:3000/api \
+    --frontend.secret secret2
 ```
 
 Start geth client:
 
 ```
-$ docker run --net=host ethereum/client-go --dev --dev.period 1 --ethstats a:secret@localhost:8000
+$ geth --dev --dev.period 1 --ethstats a:secret@localhost:8000
 ```
 
 Run ethstats frontend ([goerli/ethstats-server repo](https://github.com/goerli/ethstats-server)):
