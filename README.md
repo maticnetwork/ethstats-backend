@@ -52,3 +52,5 @@ $ WS_SECRET="secret2" npm start
 - frontend.addr: Address of the ethstats frontend to proxy the data.
 
 - frontend.secret: Secret to be used in the ethstats proxy.
+
+- save-block-txs: Whether block transactions should be written to database.

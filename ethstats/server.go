@@ -9,11 +9,12 @@ import (
 )
 
 type Config struct {
-	CollectorAddr   string
-	CollectorSecret string
-	Endpoint        string
-	FrontendAddr    string
-	FrontendSecret  string
+	CollectorAddr      string
+	CollectorSecret    string
+	Endpoint           string
+	FrontendAddr       string
+	FrontendSecret     string
+	ShouldSaveBlockTxs bool
 }
 
 type Server struct {
@@ -95,7 +96,7 @@ func (s *Server) handleMessage(nodeID string, msg *Msg) {
 			if err := msg.decodeMsg("block", &block); err != nil {
 				return err
 			}
-			if err := s.state.WriteBlock(&block); err != nil {
+			if err := s.state.WriteBlock(s.config, &block); err != nil {
 				return err
 			}
 
