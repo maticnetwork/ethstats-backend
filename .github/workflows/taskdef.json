@@ -7,7 +7,9 @@
         {
             "name": "ethstats-backend",
             "image": "",
-            "command": ["server"],
+            "command": [
+                "server --save-block-txs=false"
+            ],
             "resourceRequirements": null,
             "essential": true,
             "portMappings": [
