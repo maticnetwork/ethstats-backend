@@ -26,12 +26,13 @@ func main() {
 	}
 
 	serverCMD := flag.NewFlagSet("server", flag.ExitOnError)
-	serverCMD.StringVar(&config.Endpoint, "db-endpoint", dbEndpoint, "")
+	serverCMD.StringVar(&config.Endpoint, "db-endpoint", dbEndpoint, "database endpoint")
 	serverCMD.StringVar(&config.CollectorAddr, "collector.addr", "0.0.0.0:8000", "ws service address for collector")
-	serverCMD.StringVar(&config.CollectorSecret, "collector.secret", os.Getenv("COLLECTOR_SECRET"), "")
-	serverCMD.StringVar(&logLevel, "log-level", "Log level", "info")
-	serverCMD.StringVar(&config.FrontendAddr, "frontend.addr", os.Getenv("FRONTEND_ADDR"), "")
-	serverCMD.StringVar(&config.FrontendSecret, "frontend.secret", os.Getenv("FRONTEND_SECRET"), "")
+	serverCMD.StringVar(&config.CollectorSecret, "collector.secret", os.Getenv("COLLECTOR_SECRET"), "collector secret")
+	serverCMD.StringVar(&logLevel, "log-level", "info", "log level")
+	serverCMD.StringVar(&config.FrontendAddr, "frontend.addr", os.Getenv("FRONTEND_ADDR"), "frontend address")
+	serverCMD.StringVar(&config.FrontendSecret, "frontend.secret", os.Getenv("FRONTEND_SECRET"), "frontend secret")
+	serverCMD.BoolVar(&config.ShouldSaveBlockTxs, "save-block-txs", true, "should block txs be written to db")
 
 	purgeCMD := flag.NewFlagSet("purge", flag.ExitOnError)
 	purgeCMD.IntVar(&persistDataDuration, "persist-days", 0, "Data older than this days will be deleted")

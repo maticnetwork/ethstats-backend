@@ -92,7 +92,7 @@ func (s *State) GetBlock(hash string) (*Block, error) {
 	return &block, nil
 }
 
-func (s *State) WriteBlock(b *Block) error {
+func (s *State) WriteBlock(config *Config, b *Block) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
@@ -129,10 +129,12 @@ func (s *State) WriteBlock(b *Block) error {
 		return err
 	}
 
-	// add the transactions for each block
-	for _, txn := range b.Txs {
-		if _, err := tx.Exec(`INSERT INTO block_transactions (block_hash, txn_hash) VALUES ($1, $2)`, b.Hash, txn.Hash); err != nil {
-			return err
+	if config.ShouldSaveBlockTxs {
+		// add the transactions for each block
+		for _, txn := range b.Txs {
+			if _, err := tx.Exec(`INSERT INTO block_transactions (block_hash, txn_hash) VALUES ($1, $2)`, b.Hash, txn.Hash); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -218,7 +220,7 @@ func (s *State) WriteNodeStats(nodeId string, stats *NodeStats) error {
 	return nil
 }
 
-//Deletes data older than x seconds
+// Deletes data older than x seconds
 func (s *State) DeleteOlderData(seconds int) error {
 	tx, err := s.db.Beginx()
 	if err != nil {

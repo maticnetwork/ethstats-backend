@@ -45,7 +45,8 @@ func setupPostgresql(t *testing.T) (*sqlx.DB, func()) {
 }
 
 var (
-	one = big.NewInt(1)
+	one    = big.NewInt(1)
+	config = &Config{ShouldSaveBlockTxs: true}
 )
 
 func TestState_WriteBlock(t *testing.T) {
@@ -65,7 +66,7 @@ func TestState_WriteBlock(t *testing.T) {
 		Diff:      argBigPtr(one),
 	}
 
-	assert.NoError(t, s.WriteBlock(block))
+	assert.NoError(t, s.WriteBlock(config, block))
 
 	block2, err := s.GetBlock(hash)
 	assert.NoError(t, err)
@@ -100,13 +101,13 @@ func TestState_DeleteOlderData(t *testing.T) {
 	}
 
 	//Writing Block A
-	assert.NoError(t, s.WriteBlock(blockA))
+	assert.NoError(t, s.WriteBlock(config, blockA))
 
 	//Sleeping for 2 seconds
 	time.Sleep(2 * time.Second)
 
 	//Writing Block B
-	assert.NoError(t, s.WriteBlock(blockB))
+	assert.NoError(t, s.WriteBlock(config, blockB))
 
 	//Checking Presence of Block A before Deletion
 	block2A, err := s.GetBlock(hashA)
