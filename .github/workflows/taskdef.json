@@ -8,7 +8,8 @@
             "name": "ethstats-backend",
             "image": "",
             "command": [
-                "server --save-block-txs=false"
+                "server",
+                "--save-block-txs=false"
             ],
             "resourceRequirements": null,
             "essential": true,
@@ -50,12 +51,21 @@
             "workingDirectory": null,
             "extraHosts": null,
             "logConfiguration": {
-                "logDriver": "awslogs",
+                "logDriver": "awsfirelens",
                 "options": {
-                    "awslogs-group": "/ecs/ethstats-backend",
-                    "awslogs-region": "us-west-2",
-                    "awslogs-stream-prefix": "ecs"
-                }
+                    "Name": "datadog",
+                    "dd_service": "ethstats-backend-aws",
+                    "dd_source": "ethstats-backend",
+                    "dd_tags": "environment:production",
+                    "TLS": "on",
+                    "provider": "ecs"
+                },
+                "secretOptions": [
+                    {
+                        "name": "apiKey",
+                        "valueFrom": "arn:aws:ssm:us-west-2:234346247508:parameter/polygon-otel-collector-dd-api-key"
+                    }
+                ]
             },
             "ulimits": null,
             "dockerLabels": null,
@@ -115,6 +125,23 @@
             "dependsOn": null,
             "repositoryCredentials": {
                 "credentialsParameter": ""
+            }
+        },
+        {
+            "essential": true,
+            "image": "amazon/aws-for-fluent-bit:latest",
+            "name": "log_router",
+            "cpu": 0,
+            "user": "0",
+            "environment": [],
+            "mountPoints": [],
+            "volumesFrom": [],
+            "portMappings": [],
+            "firelensConfiguration": {
+                "type": "fluentbit",
+                "options": {
+                    "enable-ecs-log-metadata": "true"
+                }
             }
         }
     ],
