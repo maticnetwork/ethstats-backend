@@ -63,7 +63,7 @@
                 "secretOptions": [
                     {
                         "name": "apiKey",
-                        "valueFrom": "arn:aws:ssm:us-west-2:234346247508:parameter/polygon-otel-collector-dd-api-key"
+                        "valueFrom": "arn:aws:ssm:us-west-2:234346247508:parameter/ethstats-backend/datadog-api-key"
                     }
                 ]
             },
