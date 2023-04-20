@@ -72,10 +72,11 @@ System_Boundary(blockchain, "Polygon PoS v1") {
 
 System_Boundary(ethstats, "Ethstats") {
   Container(backend, "Ethstats Backend")
-  Container(hasura, "Hasura")
+  Container(hasura, "Hasura GraphQL Engine")
   Container(postgres, "Postgres")
-  Container(frontend, "Ethstats Frontend")
 }
+
+Container_Ext(frontend, "Ethstats Frontend")
 
 Person(user, "User")
 
