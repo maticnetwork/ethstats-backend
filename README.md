@@ -54,3 +54,22 @@ $ WS_SECRET="secret2" npm start
 - frontend.secret: Secret to be used in the ethstats proxy.
 
 - save-block-txs: Whether block transactions should be written to database.
+
+
+## Run local docker compose environment
+- ``` git clone https://github.com/maticnetwork/reorgs-frontend.git```
+- ```cd reorgs-frontend```
+- ```git checkout localhost```
+- ```sudo docker build -t ethstats-frontend .```
+- ```cd ..```
+- ```sudo docker build -t ethstats-backend .```
+- ```docker-compose up -d```
+- go to ```localhost:8080``` to see the hasura frontend
+- click on ```settings``` on top-right corner
+- click on ```import metadata```
+- select ```hasura_metadata_example.json``` from the root directory of this repo
+- go to ```localhost:3000``` to see the frontend
+
+### Add ethstats flag in bor commands to send bor data to ethstats-backend
+- ```--ethstats <node-name>:<secret>@<ethstats-server-ip>:<ethstats-server-port>```
+- for local setup : ```--ethstats node1:hello@localhost:8000```
