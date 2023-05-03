@@ -12,19 +12,21 @@ services:
       POSTGRES_PASSWORD: postgrespassword
   ethstats:
     image: ethstats-backend:latest
+    command: [
+                "server"
+            ]
     ports:
     - "8000:8000"
     depends_on:
     - "postgres"
     environment:
       PERSIST_DAYS : 5
+      COLLECTOR_SECRET : "hello"
     restart: always
   graphql-engine:
     image: hasura/graphql-engine:v2.1.1.cli-migrations-v3
     ports:
     - "8080:8080"
-    volumes:
-    - ./ethstats-hasura/metadata:/hasura-metadata
     depends_on:
     - "ethstats"
     restart: always
