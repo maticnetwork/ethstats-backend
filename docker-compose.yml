@@ -36,6 +36,8 @@ services:
       HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
   frontend:
     image: ethstats-frontend:latest
+    args:
+      - REACT_APP_BACKEND=${REACT_APP_BACKEND}
     ports:
     - "3000:3000"
     depends_on:
