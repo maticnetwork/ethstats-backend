@@ -130,10 +130,10 @@ CREATE TABLE public.nodestats (
     active boolean DEFAULT false,
     syncing boolean DEFAULT false,
     mining boolean DEFAULT false,
-    hashrate integer DEFAULT 0,
+    hashrate BIGINT DEFAULT 0,
     peers integer DEFAULT 0,
-    gasprice integer DEFAULT 0,
-    uptime integer DEFAULT 0,
+    gasprice BIGINT DEFAULT 0,
+    uptime BIGINT DEFAULT 0,
     updated_at timestamp without time zone DEFAULT now() NOT NULL
 );
 ALTER TABLE ONLY hdb_catalog.hdb_action_log
